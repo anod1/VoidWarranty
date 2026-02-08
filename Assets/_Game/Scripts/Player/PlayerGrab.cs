@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using FishNet.Object;
 using FishNet.Connection;
 using VoidWarranty.Interaction;

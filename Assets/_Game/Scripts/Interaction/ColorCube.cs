@@ -7,9 +7,9 @@ namespace VoidWarranty.Interaction
     {
         public void Interact(GameObject interactor)
         {
-            Debug.Log("Interaction reçue ! Changement de couleur.");
+            Debug.Log("Interaction reï¿½ue ! Changement de couleur.");
 
-            // Juste pour le test visuel local immédiat
+            // Juste pour le test visuel local immï¿½diat
             GetComponent<Renderer>().material.color = Random.ColorHSV();
         }
 

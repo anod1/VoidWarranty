@@ -41,7 +41,7 @@ namespace VoidWarranty.Player
         }
 
         // =====================================================================
-        // Scan passif — Met à jour le prompt UI en continu
+        // Scan passif ï¿½ Met ï¿½ jour le prompt UI en continu
         // =====================================================================
 
         private void ScanForInteractable()
@@ -52,8 +52,8 @@ namespace VoidWarranty.Player
 
             if (Physics.Raycast(ray, out RaycastHit hit, _interactDistance, _interactLayer))
             {
-                // GetComponentInParent cherche sur le collider touché PUIS remonte la hiérarchie
-                // Nécessaire car les colliders peuvent être sur des enfants (compound colliders)
+                // GetComponentInParent cherche sur le collider touchï¿½ PUIS remonte la hiï¿½rarchie
+                // Nï¿½cessaire car les colliders peuvent ï¿½tre sur des enfants (compound colliders)
                 IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
                 if (interactable != null)
                 {
@@ -67,7 +67,7 @@ namespace VoidWarranty.Player
         }
 
         // =====================================================================
-        // Interaction active — Quand le joueur appuie sur E
+        // Interaction active ï¿½ Quand le joueur appuie sur E
         // =====================================================================
 
         private void HandleInteractInput()

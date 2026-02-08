@@ -1,5 +1,5 @@
 using UnityEngine;
-using TMPro; // Nécessaire pour le texte moderne
+using TMPro; // Nï¿½cessaire pour le texte moderne
 
 namespace VoidWarranty.UI
 {
@@ -11,7 +11,7 @@ namespace VoidWarranty.UI
 
         private void Awake()
         {
-            // Au démarrage, on cache le texte
+            // Au dï¿½marrage, on cache le texte
             if (_promptText != null) _promptText.text = "";
         }
 

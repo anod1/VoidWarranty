@@ -13,7 +13,7 @@ namespace VoidWarranty.Player
         [SerializeField] private float _runSpeed = 7f;
         [SerializeField] private float _crouchSpeed = 2f;
 
-        [Header("Settings - Saut & Gravité")]
+        [Header("Settings - Saut & Gravitï¿½")]
         [SerializeField] private float _jumpHeight = 1.2f;
         [SerializeField] private float _gravity = -9.81f;
 
@@ -24,8 +24,8 @@ namespace VoidWarranty.Player
         [SerializeField] private float _crouchHeight = 1f;
         [SerializeField] private float _crouchTransitionSpeed = 10f;
         [SerializeField] private Transform _cameraHolder;
-        [Tooltip("De combien descend la caméra quand on s'accroupit (en mètres)")]
-        [SerializeField] private float _crouchCameraOffset = 0.5f; // Nouveau paramètre !
+        [Tooltip("De combien descend la camï¿½ra quand on s'accroupit (en mï¿½tres)")]
+        [SerializeField] private float _crouchCameraOffset = 0.5f; // Nouveau paramï¿½tre !
         [SerializeField] private LayerMask _ceilingLayer;
 
         [Header("Settings - Poids")]
@@ -47,7 +47,7 @@ namespace VoidWarranty.Player
         private Vector3 _velocity;
         private bool _isCrouchingPhysically = false;
 
-        // On sauvegarde la position initiale de la caméra (définie dans le prefab)
+        // On sauvegarde la position initiale de la camï¿½ra (dï¿½finie dans le prefab)
         private float _standingCameraHeight;
 
         private void Awake()
@@ -60,11 +60,11 @@ namespace VoidWarranty.Player
             _characterController.height = _standHeight;
             _characterController.center = Vector3.zero;
 
-            // On sauvegarde la position Y initiale de la caméra (celle du prefab)
+            // On sauvegarde la position Y initiale de la camï¿½ra (celle du prefab)
             if (_cameraHolder != null)
             {
                 _standingCameraHeight = _cameraHolder.localPosition.y;
-                Debug.Log($"[PlayerMovement] Caméra debout sauvegardée à Y={_standingCameraHeight}");
+                Debug.Log($"[PlayerMovement] Camï¿½ra debout sauvegardï¿½e ï¿½ Y={_standingCameraHeight}");
             }
         }
 
@@ -127,7 +127,7 @@ namespace VoidWarranty.Player
             // 1. Le joueur veut-il s'accroupir ?
             bool wantsToCrouch = _inputReader.IsCrouching;
 
-            // 2. Vérification du plafond (Ceiling Check)
+            // 2. Vï¿½rification du plafond (Ceiling Check)
             if (!wantsToCrouch && _isCrouchingPhysically)
             {
                 Vector3 origin = transform.position + Vector3.up * _crouchHeight;
@@ -135,7 +135,7 @@ namespace VoidWarranty.Player
 
                 if (Physics.Raycast(origin, Vector3.up, distanceToCheck, _ceilingLayer))
                 {
-                    wantsToCrouch = true; // Forcé à rester accroupi
+                    wantsToCrouch = true; // Forcï¿½ ï¿½ rester accroupi
                 }
             }
 
@@ -153,7 +153,7 @@ namespace VoidWarranty.Player
                 Physics.SyncTransforms();
             }
 
-            // 4. Application fluide de la caméra
+            // 4. Application fluide de la camï¿½ra
             // NOUVELLE LOGIQUE : On part de la position du prefab et on descend seulement en crouch
             if (_cameraHolder != null)
             {
@@ -161,12 +161,12 @@ namespace VoidWarranty.Player
 
                 if (_isCrouchingPhysically)
                 {
-                    // En crouch : on descend la caméra selon l'offset configuré
+                    // En crouch : on descend la camï¿½ra selon l'offset configurï¿½
                     targetCamHeight = _standingCameraHeight - _crouchCameraOffset;
                 }
                 else
                 {
-                    // Debout : on revient à la position du prefab
+                    // Debout : on revient ï¿½ la position du prefab
                     targetCamHeight = _standingCameraHeight;
                 }
 
@@ -187,19 +187,19 @@ namespace VoidWarranty.Player
             Vector3 moveDir = transform.right * moveInput.x + transform.forward * moveInput.y;
             if (moveDir.magnitude > 1f) moveDir.Normalize();
 
-            // Calcul de la vitesse selon l'état
+            // Calcul de la vitesse selon l'ï¿½tat
             float baseSpeed;
             if (_isCrouchingPhysically)
                 baseSpeed = _crouchSpeed;
             else
                 baseSpeed = _inputReader.IsSprinting ? _runSpeed : _walkSpeed;
 
-            // Pénalité de poids
+            // Pï¿½nalitï¿½ de poids
             float currentMass = _playerGrab.CurrentHeldMass;
             float dynamicSpeed = baseSpeed - (currentMass * _weightPenaltyFactor);
             dynamicSpeed = Mathf.Max(dynamicSpeed, _minSpeed);
 
-            // Application gravité et mouvement
+            // Application gravitï¿½ et mouvement
             _velocity.y += _gravity * Time.deltaTime;
             _characterController.Move((moveDir * dynamicSpeed + _velocity) * Time.deltaTime);
         }

@@ -30,7 +30,7 @@ namespace VoidWarranty.Interaction
         [SerializeField] private float _updateRate = 0.05f; // Vitesse rafraichissement UI
         [SerializeField] private float _scanRate = 0.5f;    // Vitesse recherche de cible (Nouveau)
 
-        // On ne stocke plus un Patient, mais un Transform générique
+        // On ne stocke plus un Patient, mais un Transform gï¿½nï¿½rique
         private Transform _targetTransform;
 
         private Transform _playerTransform;
@@ -72,10 +72,10 @@ namespace VoidWarranty.Interaction
                 ScanForTarget();
             }
 
-            // Si toujours pas de cible après le scan, on arrête l'update visuel
+            // Si toujours pas de cible aprï¿½s le scan, on arrï¿½te l'update visuel
             if (_targetTransform == null) return;
 
-            // 2. MISE À JOUR RADAR (Rapide)
+            // 2. MISE ï¿½ JOUR RADAR (Rapide)
             _updateTimer += Time.deltaTime;
             if (_updateTimer >= _updateRate)
             {
@@ -95,15 +95,15 @@ namespace VoidWarranty.Interaction
             float closestDist = float.MaxValue;
             Vector3 myPos = transform.position;
 
-            // PRIORITÉ 1 : Chercher une pièce infectée (IsDefective)
+            // PRIORITï¿½ 1 : Chercher une piï¿½ce infectï¿½e (IsDefective)
             // C'est lourd de faire FindObjectsByType, mais ok pour un prototype avec peu d'objets.
-            // (Plus tard on utilisera une liste statique gérée par le GameManager)
+            // (Plus tard on utilisera une liste statique gï¿½rï¿½e par le GameManager)
             GrabbableObject[] allProps = FindObjectsByType<GrabbableObject>(FindObjectsSortMode.None);
 
             foreach (var prop in allProps)
             {
                 ItemData data = prop.GetData();
-                // Si l'objet est défectueux (c'est le moteur infecté !)
+                // Si l'objet est dï¿½fectueux (c'est le moteur infectï¿½ !)
                 if (data != null && data.IsDefective)
                 {
                     float d = Vector3.Distance(myPos, prop.transform.position);
@@ -115,10 +115,10 @@ namespace VoidWarranty.Interaction
                 }
             }
 
-            // Si on a trouvé une pièce infectée, on s'arrête là (c'est la cible prioritaire)
+            // Si on a trouvï¿½ une piï¿½ce infectï¿½e, on s'arrï¿½te lï¿½ (c'est la cible prioritaire)
             if (_targetTransform != null) return;
 
-            // PRIORITÉ 2 : Si aucune pièce infectée, chercher un Patient
+            // PRIORITï¿½ 2 : Si aucune piï¿½ce infectï¿½e, chercher un Patient
             PatientObject[] patients = FindObjectsByType<PatientObject>(FindObjectsSortMode.None);
             foreach (var patient in patients)
             {
@@ -193,7 +193,7 @@ namespace VoidWarranty.Interaction
             _beepTimer = 0f;
             _currentBlipAlpha = 0f;
 
-            // Force un scan immédiat quand on le prend
+            // Force un scan immï¿½diat quand on le prend
             ScanForTarget();
         }
 

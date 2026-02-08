@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using FishNet.Object;
 using FishNet.Component.Transforming; // Nécessaire pour trouver le NetworkTransform
 using VoidWarranty.Core;

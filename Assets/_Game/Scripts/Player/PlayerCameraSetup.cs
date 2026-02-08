@@ -4,9 +4,9 @@ using FishNet.Object;
 namespace VoidWarranty.Player
 {
     /// <summary>
-    /// Responsabilité : Gérer l'assignation de la caméra au joueur local.
-    /// Ce script ne gère PAS la rotation (c'est le Movement qui le fait).
-    /// Il gère juste le "parenting".
+    /// Responsabilitï¿½ : Gï¿½rer l'assignation de la camï¿½ra au joueur local.
+    /// Ce script ne gï¿½re PAS la rotation (c'est le Movement qui le fait).
+    /// Il gï¿½re juste le "parenting".
     /// </summary>
     public class PlayerCameraSetup : NetworkBehaviour
     {
@@ -17,31 +17,31 @@ namespace VoidWarranty.Player
         {
             base.OnStartClient();
 
-            // Si ce n'est pas MOI, je ne touche pas à la caméra de la scène
+            // Si ce n'est pas MOI, je ne touche pas ï¿½ la camï¿½ra de la scï¿½ne
             if (!base.IsOwner)
             {
                 return;
             }
 
-            // C'est MOI. Je récupère la caméra de la scène.
-            // Note : Camera.main est un raccourci Unity pour trouver la caméra taggée "MainCamera"
+            // C'est MOI. Je rï¿½cupï¿½re la camï¿½ra de la scï¿½ne.
+            // Note : Camera.main est un raccourci Unity pour trouver la camï¿½ra taggï¿½e "MainCamera"
             Camera sceneCamera = Camera.main;
 
             if (sceneCamera != null)
             {
-                // On détache la caméra de son parent actuel (au cas où)
+                // On dï¿½tache la camï¿½ra de son parent actuel (au cas oï¿½)
                 sceneCamera.transform.SetParent(null);
 
-                // On l'attache à nos yeux (_cameraRoot)
+                // On l'attache ï¿½ nos yeux (_cameraRoot)
                 sceneCamera.transform.SetParent(_cameraRoot);
 
-                // On reset sa position locale à (0,0,0) pour qu'elle soit pile sur le root
+                // On reset sa position locale ï¿½ (0,0,0) pour qu'elle soit pile sur le root
                 sceneCamera.transform.localPosition = Vector3.zero;
                 sceneCamera.transform.localRotation = Quaternion.identity;
             }
             else
             {
-                Debug.LogError("Aucune MainCamera trouvée dans la scène !");
+                Debug.LogError("Aucune MainCamera trouvï¿½e dans la scï¿½ne !");
             }
         }
     }

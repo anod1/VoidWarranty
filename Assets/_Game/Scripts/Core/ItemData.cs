@@ -17,7 +17,7 @@ namespace VoidWarranty.Core
     [CreateAssetMenu(fileName = "New Item", menuName = "VoidWarranty/Item Data")]
     public class ItemData : ScriptableObject
     {
-        [Header("Clés de Traduction")]
+        [Header("Clï¿½s de Traduction")]
         public string NameKey = "ITEM_NAME";
         public string DescriptionKey = "ITEM_DESC";
 
@@ -33,10 +33,10 @@ namespace VoidWarranty.Core
 
         // --- NOUVEAU : Positionnement en main ---
         [Header("Position en Main (Offset)")]
-        // Par défaut (0,0,0) = Sur le HoldPoint exact
+        // Par dï¿½faut (0,0,0) = Sur le HoldPoint exact
         public Vector3 HeldPositionOffset = Vector3.zero;
 
-        // Rotation ajoutée (ex: incliner le scanner vers le visage)
+        // Rotation ajoutï¿½e (ex: incliner le scanner vers le visage)
         public Vector3 HeldRotationOffset = Vector3.zero;
     }
 }

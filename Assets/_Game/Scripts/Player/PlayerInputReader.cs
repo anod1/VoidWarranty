@@ -9,13 +9,13 @@ namespace VoidWarranty.Player
         public Vector2 LookInput { get; private set; }
         public bool IsSprinting { get; private set; }
 
-        // NOUVEAU : On ajoute l'état Accroupi
+        // NOUVEAU : On ajoute l'ï¿½tat Accroupi
         public bool IsCrouching { get; private set; }
 
         public event System.Action OnInteractEvent;
         public event System.Action OnGrabToggleEvent;
 
-        // NOUVEAU : Event pour le saut (car c'est une action instantanée)
+        // NOUVEAU : Event pour le saut (car c'est une action instantanï¿½e)
         public event System.Action OnJumpEvent;
 
         private GameControls _controls;
@@ -74,7 +74,7 @@ namespace VoidWarranty.Player
             else if (context.canceled) IsCrouching = false;
         }
 
-        // Non utilisés pour l'instant
+        // Non utilisï¿½s pour l'instant
         public void OnAttack(InputAction.CallbackContext context) { }
         public void OnPrevious(InputAction.CallbackContext context) { }
         public void OnNext(InputAction.CallbackContext context) { }
