@@ -1,0 +1,27 @@
+KEY;VALUE
+ACTION_TAKE;Prendre
+ACTION_INSERT;Insérer Pièce
+ACTION_REMOVE;Retirer Pièce
+ACTION_REPAIR_START;Dévisser Nœud (Outils requis)
+ACTION_REPAIR_PROGRESS;Réparation en cours...
+STATUS_REPAIRED;Système Inactif
+ITEM_CRATE_PROTO_NAME;Caisse
+ITEM_CRATE_PROTO_DESC;Caisse en bois
+ITEM_MOTOR_NAME;Moteur V8
+ITEM_NEW_MOTOR_DESC;Un moteur tout neuf !
+ITEM_BROKEN_MOTOR_DESC;Un bloc moteur lourd et rouillé.
+ITEM_FUSE_NAME;Fusible Industriel
+ITEM_FUSE_DESC;Un petit fusible standard.
+ITEM_SCANNER_NAME;Scanner Bio-Métrique
+ITEM_SCANNER_DESC;Détecte les signaux de l'organisme.
+ITEM_TOOLBOX_NAME;Boîte à Outils
+ITEM_TOOLBOX_DESC;Nécessaire pour les réparations.
+MSG_CONTRACT_VALID;Contrat Validé !
+MSG_CONTRACT_INVALID;Erreur ! Cette pièce est neuve.
+ACTION_OPEN_CRATE;Ouvrir la caisse
+ACTION_DISMANTLE;Démonter [Boîte à Outils]
+ACTION_INSTALL_PART;Installer la pièce [E]
+FEEDBACK_NEED_TOOLBOX;Il vous faut une boîte à outils
+FEEDBACK_NEED_SPARE_PART;Il vous faut la pièce de rechange
+FEEDBACK_WRONG_PART;Cette pièce n'est pas compatible
+ITEM_SUPPLY_CRATE;Caisse de livraison

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cc4e9c899db2d04da549a1fa67699a0, type: 3}
+  m_Name: Data_Scanner
+  m_EditorClassIdentifier: Assembly-CSharp::VoidWarranty.Core.ItemData
+  NameKey: ITEM_SCANNER_NAME
+  DescriptionKey: ITEM_SCANNER_DESC
+  Type: 6
+  IsDefective: 0
+  ScrapValue: 10
+  Mass: 20
+  LinearDamping: 0
+  AngularDamping: 0
+  HeldPositionOffset: {x: 0.22, y: 0.5, z: -0.5}
+  HeldRotationOffset: {x: -50, y: 0, z: 0}

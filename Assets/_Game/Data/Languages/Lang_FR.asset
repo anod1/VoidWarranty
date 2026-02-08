@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f29f2b9077b07748b7bfc35ef086f13, type: 3}
+  m_Name: Lang_FR
+  m_EditorClassIdentifier: Assembly-CSharp::VoidWarranty.Core.LocalizationTable
+  LanguageName: French
+  LanguageCode: fr_FR
+  CsvFile: {fileID: 4900000, guid: a12cf4364f5a64a42ae72cff9f6e26e4, type: 3}
+  _entries:
+  - Key: ACTION_TAKE
+    Value: Prendre
+  - Key: ACTION_INSERT
+    Value: "Ins\xE9rer Pi\xE8ce"
+  - Key: ACTION_REMOVE
+    Value: "Retirer Pi\xE8ce"
+  - Key: ACTION_REPAIR_START
+    Value: "D\xE9visser N\u0153ud (Outils requis)"
+  - Key: ACTION_REPAIR_PROGRESS
+    Value: "R\xE9paration en cours..."
+  - Key: STATUS_REPAIRED
+    Value: "Syst\xE8me Inactif"
+  - Key: ITEM_CRATE_PROTO_NAME
+    Value: Caisse
+  - Key: ITEM_CRATE_PROTO_DESC
+    Value: Caisse en bois
+  - Key: ITEM_MOTOR_NAME
+    Value: Moteur V8
+  - Key: ITEM_NEW_MOTOR_DESC
+    Value: Un moteur tout neuf !
+  - Key: ITEM_BROKEN_MOTOR_DESC
+    Value: "Un bloc moteur lourd et rouill\xE9."
+  - Key: ITEM_FUSE_NAME
+    Value: Fusible Industriel
+  - Key: ITEM_FUSE_DESC
+    Value: Un petit fusible standard.
+  - Key: ITEM_SCANNER_NAME
+    Value: "Scanner Bio-M\xE9trique"
+  - Key: ITEM_SCANNER_DESC
+    Value: "D\xE9tecte les signaux de l'organisme."
+  - Key: ITEM_TOOLBOX_NAME
+    Value: "Bo\xEEte \xE0 Outils"
+  - Key: ITEM_TOOLBOX_DESC
+    Value: "N\xE9cessaire pour les r\xE9parations."
+  - Key: MSG_CONTRACT_VALID
+    Value: "Contrat Valid\xE9 !"
+  - Key: MSG_CONTRACT_INVALID
+    Value: "Erreur ! Cette pi\xE8ce est neuve."

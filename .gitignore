@@ -1,0 +1,58 @@
+# ===================================
+# GITIGNORE UNITY - VERSION LÉGÈRE
+# ===================================
+# Ce fichier empêche Git de tracker des fichiers inutiles
+# Résultat : Repo léger (~50MB au lieu de 5GB)
+
+# Dossiers Unity générés automatiquement
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Fichiers de cache Unity
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Fichiers Visual Studio
+.vs/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Fichiers temporaires OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Asset Store (optionnel - décommente si tu veux les tracker)
+# [Aa]ssets/AssetStoreTools*
+
+# Plastic SCM (système de version Unity)
+.plasticscm/
+
+# ===================================
+# CE QUI EST TRACKÉ (les trucs importants) :
+# - Scripts (.cs)
+# - Scènes (.unity)
+# - Prefabs (.prefab)
+# - ScriptableObjects (.asset)
+# - Materials, textures, modèles (Assets/)
+# - Project Settings/
+# - Packages/manifest.json (liste des packages)
+# ===================================

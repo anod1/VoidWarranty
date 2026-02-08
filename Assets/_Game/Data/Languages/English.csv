@@ -1,0 +1,20 @@
+KEY;VALUE
+ACTION_TAKE;Take
+ACTION_INSERT;Insert Part
+ACTION_REMOVE;Remove Part
+ACTION_REPAIR_START;Unscrew Node (Tools required)
+ACTION_REPAIR_PROGRESS;Repairing...
+STATUS_REPAIRED;System Inactive
+ITEM_CRATE_PROTO_NAME;Crate
+ITEM_CRATE_PROTO_DESC;Wooden crate
+ITEM_MOTOR_NAME;V8 Engine
+ITEM_NEW_MOTOR_DESC; Shiny motor
+ITEM_BROKEN_MOTOR_DESC;A heavy, rusty engine block.
+ITEM_FUSE_NAME;Electric Fuse
+ITEM_FUSE_DESC;A small industrial fuse.
+ITEM_SCANNER_NAME;Bio-Metric Scanner
+ITEM_SCANNER_DESC;Detects organism signals.
+ITEM_TOOLBOX_NAME;Toolbox
+ITEM_TOOLBOX_DESC;Required for repairs.
+MSG_CONTRACT_VALID;Contract Validated!
+MSG_CONTRACT_INVALID;Wrong Item! This is new.
