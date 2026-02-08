@@ -35,6 +35,9 @@
 *.pdb.meta
 *.mdb.meta
 
+# Claude Code (IDE/Assistant)
+.claude/
+
 # Fichiers temporaires OS
 .DS_Store
 Thumbs.db
