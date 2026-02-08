@@ -61,7 +61,7 @@ Multiplayer co-op game where players repair infected machines/patients on a spac
 
 ## Tech Stack
 
-- **Engine**: Unity 2022.3 LTS
+- **Engine**: Unity 6000.3.6f1
 - **Networking**: FishNet
 - **Input**: New Input System
 - **Rendering**: URP
@@ -81,7 +81,7 @@ Multiplayer co-op game where players repair infected machines/patients on a spac
 ## Setup Instructions
 
 1. Clone the repository
-2. Open with Unity 2022.3+
+2. Open with Unity 6000.3.6f1+
 3. FishNet will auto-import dependencies
 4. Open _Game/Scenes/MainScene
 
