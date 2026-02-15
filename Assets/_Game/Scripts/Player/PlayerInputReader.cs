@@ -15,8 +15,8 @@ namespace VoidWarranty.Player
         public event System.Action OnInteractEvent;
         public event System.Action OnGrabToggleEvent;
 
-        // NOUVEAU : Event pour le saut (car c'est une action instantan�e)
         public event System.Action OnJumpEvent;
+        public event System.Action OnMissionToggleEvent;
 
         private GameControls _controls;
 
@@ -74,7 +74,12 @@ namespace VoidWarranty.Player
             else if (context.canceled) IsCrouching = false;
         }
 
-        // Non utilis�s pour l'instant
+        public void OnMissionToggle(InputAction.CallbackContext context)
+        {
+            if (context.started) OnMissionToggleEvent?.Invoke();
+        }
+
+        // Non utilisés pour l'instant
         public void OnAttack(InputAction.CallbackContext context) { }
         public void OnPrevious(InputAction.CallbackContext context) { }
         public void OnNext(InputAction.CallbackContext context) { }

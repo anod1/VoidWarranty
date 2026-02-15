@@ -88,22 +88,22 @@ namespace VoidWarranty.Interaction
             UpdateBlipFade();
         }
 
-        // --- NOUVELLE LOGIQUE DE CIBLAGE ---
         private void ScanForTarget()
         {
             _targetTransform = null;
             float closestDist = float.MaxValue;
             Vector3 myPos = transform.position;
 
-            // PRIORIT� 1 : Chercher une pi�ce infect�e (IsDefective)
-            // C'est lourd de faire FindObjectsByType, mais ok pour un prototype avec peu d'objets.
-            // (Plus tard on utilisera une liste statique g�r�e par le GameManager)
-            GrabbableObject[] allProps = FindObjectsByType<GrabbableObject>(FindObjectsSortMode.None);
+            if (GameManager.Instance == null) return;
 
-            foreach (var prop in allProps)
+            // Priorité 1 : pièce défectueuse (cible la plus urgente)
+            var grabbables = GameManager.Instance.Grabbables;
+            for (int i = 0; i < grabbables.Count; i++)
             {
+                var prop = grabbables[i];
+                if (prop == null) continue;
+
                 ItemData data = prop.GetData();
-                // Si l'objet est d�fectueux (c'est le moteur infect� !)
                 if (data != null && data.IsDefective)
                 {
                     float d = Vector3.Distance(myPos, prop.transform.position);
@@ -115,13 +115,15 @@ namespace VoidWarranty.Interaction
                 }
             }
 
-            // Si on a trouv� une pi�ce infect�e, on s'arr�te l� (c'est la cible prioritaire)
             if (_targetTransform != null) return;
 
-            // PRIORIT� 2 : Si aucune pi�ce infect�e, chercher un Patient
-            PatientObject[] patients = FindObjectsByType<PatientObject>(FindObjectsSortMode.None);
-            foreach (var patient in patients)
+            // Priorité 2 : patient non réparé
+            var patients = GameManager.Instance.Patients;
+            for (int i = 0; i < patients.Count; i++)
             {
+                var patient = patients[i];
+                if (patient == null) continue;
+
                 float d = Vector3.Distance(myPos, patient.transform.position);
                 if (d < closestDist)
                 {
@@ -130,7 +132,6 @@ namespace VoidWarranty.Interaction
                 }
             }
         }
-        // -----------------------------------
 
         private void UpdateRadarPosition()
         {

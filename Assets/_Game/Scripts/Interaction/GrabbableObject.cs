@@ -33,15 +33,21 @@ namespace VoidWarranty.Interaction
                 _rb.angularDamping = _data.AngularDamping;
             }
 
-            // --- ABONNEMENT AU CHANGEMENT ---
-            // C'est ici qu'on dit "Quand la valeur change, lance la fonction OnHeldChanged"
             IsHeld.OnChange += OnHeldChanged;
         }
 
-        // On doit se désabonner proprement quand l'objet est détruit pour éviter les fuites de mémoire
+        protected virtual void Start()
+        {
+            if (GameManager.Instance != null)
+                GameManager.Instance.RegisterGrabbable(this);
+        }
+
         private void OnDestroy()
         {
             IsHeld.OnChange -= OnHeldChanged;
+
+            if (GameManager.Instance != null)
+                GameManager.Instance.UnregisterGrabbable(this);
         }
 
         // La signature de la fonction reste la même : (AncienneValeur, NouvelleValeur, EstServeur)

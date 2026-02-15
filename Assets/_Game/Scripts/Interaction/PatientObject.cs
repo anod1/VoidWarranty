@@ -32,6 +32,7 @@ using UnityEngine.UI;
 using FishNet.Object;
 using VoidWarranty.Core;
 using VoidWarranty.Player;
+using VoidWarranty.UI;
 using System.Collections.Generic;
 
 namespace VoidWarranty.Interaction
@@ -110,6 +111,16 @@ namespace VoidWarranty.Interaction
             // L'état initial montre la pièce corrompue
             if (_infectedVisual != null)
                 _infectedVisual.SetActive(true);
+
+            // Enregistrement auprès du GameManager
+            if (GameManager.Instance != null)
+                GameManager.Instance.RegisterPatient(this);
+        }
+
+        private void OnDestroy()
+        {
+            if (GameManager.Instance != null)
+                GameManager.Instance.UnregisterPatient(this);
         }
 
         // =====================================================================
@@ -383,6 +394,10 @@ namespace VoidWarranty.Interaction
             _currentState = PatientState.Repaired;
             _installerPlayer = null;
 
+            // Notifier le GameManager
+            if (GameManager.Instance != null)
+                GameManager.Instance.NotifyPatientRepaired(this);
+
             ObserversOnInstallComplete();
         }
 
@@ -401,7 +416,8 @@ namespace VoidWarranty.Interaction
             if (_audioSource != null && _installClip != null)
                 _audioSource.PlayOneShot(_installClip);
 
-            Debug.Log("✅ Patient réparé — pièce neuve installée !");
+            if (NotificationHUD.Instance != null)
+                NotificationHUD.Instance.Show(LocalizationManager.Get("STATUS_REPAIRED"));
         }
 
         // =====================================================================
@@ -472,15 +488,21 @@ namespace VoidWarranty.Interaction
         }
 
         /// <summary>
-        /// Feedback ciblé à un joueur spécifique (ex: "Il vous faut une boîte à outils").
-        /// Pour l'instant on log. Plus tard → TargetRpc vers le HUD du joueur.
+        /// Feedback ciblé — affiché uniquement sur le client local du joueur concerné.
+        /// Chaque client reçoit le RPC, mais seul le joueur ciblé voit la notification.
         /// </summary>
         [ObserversRpc]
         private void ObserversShowFeedback(GameObject target, string locKey)
         {
-            // TODO: Remplacer par un TargetRpc quand le système de feedback HUD sera en place.
-            // Pour l'instant, on log pour le debug.
-            Debug.Log($"[Patient] Feedback pour {target.name}: {LocalizationManager.Get(locKey)}");
+            // Ne montrer que sur le client du joueur concerné
+            if (target == null) return;
+
+            var nb = target.GetComponent<FishNet.Object.NetworkObject>();
+            if (nb == null || !nb.IsOwner) return;
+
+            string message = LocalizationManager.Get(locKey);
+            if (NotificationHUD.Instance != null)
+                NotificationHUD.Instance.Show(message);
         }
 
         // =====================================================================

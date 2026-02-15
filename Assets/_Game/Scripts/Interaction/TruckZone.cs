@@ -1,6 +1,6 @@
 using UnityEngine;
 using FishNet.Object;
-using FishNet.Component.Transforming; // Nécessaire pour trouver le NetworkTransform
+using FishNet.Component.Transforming;
 using VoidWarranty.Core;
 
 namespace VoidWarranty.Interaction
@@ -18,21 +18,21 @@ namespace VoidWarranty.Interaction
                 {
                     if (data.IsDefective)
                     {
-                        Debug.Log($"✅ CONTRAT VALIDÉ : Pièce défectueuse {data.NameKey} récupérée !");
+                        Debug.Log($"[TruckZone] Pièce défectueuse {data.NameKey} récupérée.");
 
-                        // --- FIX DE L'ERREUR ROUGE ---
-                        // On coupe le sifflet au NetworkTransform avant de tuer l'objet
+                        // Notifier le GameManager
+                        if (GameManager.Instance != null)
+                            GameManager.Instance.NotifyDefectivePartRecovered(data);
+
+                        // Désactiver le NetworkTransform avant le Despawn pour éviter l'erreur
                         if (item.TryGetComponent(out NetworkTransform nt))
-                        {
                             nt.enabled = false;
-                        }
-                        // -----------------------------
 
                         item.NetworkObject.Despawn();
                     }
                     else
                     {
-                        Debug.Log($"⚠️ REFUSÉ : Vous avez ramené une pièce neuve ({data.NameKey}).");
+                        Debug.Log($"[TruckZone] Refusé : pièce neuve ({data.NameKey}).");
                     }
                 }
             }

@@ -15,7 +15,9 @@ namespace VoidWarranty.Player
 
         [Header("Settings - Saut & Gravit�")]
         [SerializeField] private float _jumpHeight = 1.2f;
-        [SerializeField] private float _gravity = -9.81f;
+        [SerializeField] private float _gravity = -25f;
+        [Tooltip("Distance max pour plaquer le joueur au sol en descente")]
+        [SerializeField] private float _groundSnapDistance = 0.5f;
 
         [Header("Settings - Accroupissement")]
         [Tooltip("Hauteur debout (ex: 2m pour un humain)")]
@@ -46,6 +48,7 @@ namespace VoidWarranty.Player
         private float _verticalRotation;
         private Vector3 _velocity;
         private bool _isCrouchingPhysically = false;
+        private bool _isJumping;
 
         // On sauvegarde la position initiale de la cam�ra (d�finie dans le prefab)
         private float _standingCameraHeight;
@@ -119,6 +122,7 @@ namespace VoidWarranty.Player
             if (_characterController.isGrounded)
             {
                 _velocity.y = Mathf.Sqrt(_jumpHeight * -2f * _gravity);
+                _isJumping = true;
             }
         }
 
@@ -181,27 +185,39 @@ namespace VoidWarranty.Player
             if (_characterController.isGrounded && _velocity.y < 0)
             {
                 _velocity.y = -2f;
+                _isJumping = false;
             }
 
             Vector2 moveInput = _inputReader.MoveInput;
             Vector3 moveDir = transform.right * moveInput.x + transform.forward * moveInput.y;
             if (moveDir.magnitude > 1f) moveDir.Normalize();
 
-            // Calcul de la vitesse selon l'�tat
+            // Calcul de la vitesse selon l'état
             float baseSpeed;
             if (_isCrouchingPhysically)
                 baseSpeed = _crouchSpeed;
             else
                 baseSpeed = _inputReader.IsSprinting ? _runSpeed : _walkSpeed;
 
-            // P�nalit� de poids
+            // Pénalité de poids
             float currentMass = _playerGrab.CurrentHeldMass;
             float dynamicSpeed = baseSpeed - (currentMass * _weightPenaltyFactor);
             dynamicSpeed = Mathf.Max(dynamicSpeed, _minSpeed);
 
-            // Application gravit� et mouvement
+            // Gravité
             _velocity.y += _gravity * Time.deltaTime;
+
+            // Mouvement horizontal + vertical
             _characterController.Move((moveDir * dynamicSpeed + _velocity) * Time.deltaTime);
+
+            // Ground snapping : plaque le joueur au sol en descente (escaliers, pentes)
+            if (!_isJumping && !_characterController.isGrounded && _velocity.y < 0)
+            {
+                if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, _groundSnapDistance + _characterController.height / 2f))
+                {
+                    _characterController.Move(Vector3.down * (hit.distance - _characterController.height / 2f + _characterController.skinWidth));
+                }
+            }
         }
 
         [ContextMenu("Debug Character Controller")]

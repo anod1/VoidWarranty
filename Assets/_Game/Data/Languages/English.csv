@@ -18,3 +18,9 @@ ITEM_TOOLBOX_NAME;Toolbox
 ITEM_TOOLBOX_DESC;Required for repairs.
 MSG_CONTRACT_VALID;Contract Validated!
 MSG_CONTRACT_INVALID;Wrong Item! This is new.
+MISSION_PROTO_NAME;Mission prototype
+MISSION_PROTO_DESC;Répair server and get defect module
+HUD_PATIENTS_REPAIRED;Patients repaired
+HUD_PARTS_RECOVERED;Pièces gathered
+MISSION_COMPLETED;Mission finish !
+MISSION_FAILED;Mission failed !
