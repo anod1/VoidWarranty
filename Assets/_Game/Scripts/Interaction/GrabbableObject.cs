@@ -91,11 +91,11 @@ namespace VoidWarranty.Interaction
         public virtual void OnGrabbed(Transform playerTransform)
         {
             // On modifie la .Value de la SyncVar
-            if (base.IsServerInitialized) 
+            if (base.IsServerInitialized)
             {
                 IsHeld.Value = true;
             }
-            else 
+            else
             {
                 ServerSetHeld(true);
             }

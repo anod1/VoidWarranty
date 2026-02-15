@@ -6,26 +6,21 @@ using VoidWarranty.Player;
 namespace VoidWarranty.UI
 {
     /// <summary>
-    /// Affiche l'état de la mission en cours : titre, description, objectifs, timer.
-    /// Toggle via Input System (MissionToggle action) → apparaît X secondes puis fade out.
-    /// S'affiche aussi automatiquement au démarrage et lors d'un changement d'objectif.
-    ///
-    /// Les banners completed/failed sont des CanvasGroups SÉPARÉS du mission panel.
-    /// Ils doivent être des siblings (pas enfants) du mission panel dans le HUD Canvas.
+    /// Affiche les objectifs de mission (système Tarkov-like).
+    /// Toggle via Input System (MissionToggle action = Tab).
+    /// Banners Completed/Failed : affichage PERMANENT quand la mission est finie.
     /// </summary>
     public class MissionHUD : MonoBehaviour
     {
         [Header("Mission Panel (CanvasGroup)")]
         [SerializeField] private CanvasGroup _missionPanel;
         [SerializeField] private TextMeshProUGUI _missionTitle;
-        [SerializeField] private TextMeshProUGUI _missionDescription;
-        [SerializeField] private TextMeshProUGUI _objectivesText;
+        [SerializeField] private TextMeshProUGUI _currentStepText; // Renommé → _objectivesText dans l'usage
         [SerializeField] private TextMeshProUGUI _timerText;
 
         [Header("Banners — CanvasGroups SÉPARÉS du panel")]
         [SerializeField] private CanvasGroup _completedBanner;
         [SerializeField] private CanvasGroup _failedBanner;
-        [SerializeField] private float _bannerDuration = 5f;
 
         [Header("Affichage")]
         [SerializeField] private float _displayDuration = 5f;
@@ -38,11 +33,8 @@ namespace VoidWarranty.UI
 
         // State
         private float _panelShowTimer;
-        private float _bannerShowTimer;
-        private CanvasGroup _activeBanner;
         private bool _subscribedToMission;
-        private bool _subscribedToInput;
-        private MissionManager.MissionState _lastKnownState;
+        private PlayerInputReader _subscribedReader; // Garde trace du reader actuel
 
         // =====================================================================
         // Lifecycle
@@ -68,14 +60,23 @@ namespace VoidWarranty.UI
             if (!_subscribedToMission)
                 TrySubscribeToMission();
 
-            if (!_subscribedToInput)
+            // Vérifier si le LocalInstance a changé (nouveau joueur spawné)
+            // Ne pas unsub si LocalInstance est temporairement null (évite de perdre le reader)
+            var currentLocal = PlayerInputReader.LocalInstance;
+            if (currentLocal != null && _subscribedReader != currentLocal)
+            {
+                UnsubscribeFromInput();
                 TrySubscribeToInput();
+            }
+            else if (_subscribedReader == null && currentLocal != null)
+            {
+                TrySubscribeToInput();
+            }
 
-            // Polling de l'état SyncVar (filet de sécurité si on rate l'event)
-            PollMissionState();
+            // Polling de l'étape SyncVar (filet de sécurité)
+            PollMissionStep();
 
             UpdatePanelFade();
-            UpdateBannerFade();
 
             // Refresh dynamique si le panel est visible
             if (_missionPanel != null && _missionPanel.alpha > 0f)
@@ -91,32 +92,26 @@ namespace VoidWarranty.UI
             if (_subscribedToMission) return;
             if (MissionManager.Instance == null) return;
 
-            MissionManager.Instance.OnMissionStarted += HandleMissionStarted;
-            MissionManager.Instance.OnMissionCompleted += HandleMissionCompleted;
-            MissionManager.Instance.OnMissionFailed += HandleMissionFailed;
-            MissionManager.Instance.OnObjectiveProgressChanged += HandleProgressChanged;
+            MissionManager.Instance.OnObjectivesChanged += HandleObjectivesChanged;
+            MissionManager.Instance.OnMissionEnded += HandleMissionEnded;
             _subscribedToMission = true;
 
             // Rattraper l'état si la mission a déjà démarré
-            var state = (MissionManager.MissionState)MissionManager.Instance.State.Value;
+            var state = MissionManager.Instance.GetState();
             if (state == MissionManager.MissionState.Active)
             {
                 RefreshStatic();
                 RefreshDynamic();
                 ShowPanel();
             }
-
-            _lastKnownState = state;
         }
 
         private void UnsubscribeFromMission()
         {
             if (!_subscribedToMission || MissionManager.Instance == null) return;
 
-            MissionManager.Instance.OnMissionStarted -= HandleMissionStarted;
-            MissionManager.Instance.OnMissionCompleted -= HandleMissionCompleted;
-            MissionManager.Instance.OnMissionFailed -= HandleMissionFailed;
-            MissionManager.Instance.OnObjectiveProgressChanged -= HandleProgressChanged;
+            MissionManager.Instance.OnObjectivesChanged -= HandleObjectivesChanged;
+            MissionManager.Instance.OnMissionEnded -= HandleMissionEnded;
             _subscribedToMission = false;
         }
 
@@ -126,106 +121,63 @@ namespace VoidWarranty.UI
 
         private void TrySubscribeToInput()
         {
-            if (_subscribedToInput) return;
-
-            // Chercher le PlayerInputReader local (celui qui est enabled = owner)
-            var readers = FindObjectsByType<PlayerInputReader>(FindObjectsSortMode.None);
-            foreach (var reader in readers)
+            // Utiliser le singleton PlayerInputReader.LocalInstance
+            if (PlayerInputReader.LocalInstance == null)
             {
-                if (reader.enabled)
-                {
-                    reader.OnMissionToggleEvent += HandleMissionToggle;
-                    _subscribedToInput = true;
-                    return;
-                }
+                // Pas encore de joueur local spawné
+                return;
             }
+
+            // Se subscribe au nouveau LocalInstance
+            _subscribedReader = PlayerInputReader.LocalInstance;
+            _subscribedReader.OnMissionToggleEvent += HandleMissionToggle;
         }
 
         private void UnsubscribeFromInput()
         {
-            if (!_subscribedToInput) return;
+            if (_subscribedReader == null) return;
 
-            var readers = FindObjectsByType<PlayerInputReader>(FindObjectsSortMode.None);
-            foreach (var reader in readers)
-            {
-                reader.OnMissionToggleEvent -= HandleMissionToggle;
-            }
-
-            _subscribedToInput = false;
+            _subscribedReader.OnMissionToggleEvent -= HandleMissionToggle;
+            _subscribedReader = null;
         }
 
         // =====================================================================
         // Polling SyncVar (filet de sécurité)
         // =====================================================================
 
-        private void PollMissionState()
+        private void PollMissionStep()
         {
             if (MissionManager.Instance == null) return;
 
-            var currentState = (MissionManager.MissionState)MissionManager.Instance.State.Value;
-            if (currentState == _lastKnownState) return;
+            var currentState = MissionManager.Instance.GetState();
 
-            // L'état a changé sans qu'on ait reçu l'event (race condition réseau)
-            var mm = MissionManager.Instance;
-            switch (currentState)
+            // Mission terminée : afficher le banner approprié
+            if (currentState == MissionManager.MissionState.Extracted)
             {
-                case MissionManager.MissionState.Active:
-                    RefreshStatic();
-                    RefreshDynamic();
-                    ShowPanel();
-                    break;
-
-                case MissionManager.MissionState.Completed:
-                    RefreshDynamic();
-                    ShowPanel();
-                    ShowBanner(_completedBanner);
-                    break;
-
-                case MissionManager.MissionState.Failed:
-                    ShowBanner(_failedBanner);
-                    break;
+                var outcome = MissionManager.Instance.GetOutcome();
+                if (outcome == MissionManager.MissionOutcome.Success)
+                    ShowBannerPermanent(_completedBanner);
+                else if (outcome == MissionManager.MissionOutcome.Failure)
+                    ShowBannerPermanent(_failedBanner);
             }
-
-            _lastKnownState = currentState;
         }
 
         // =====================================================================
         // Handlers
         // =====================================================================
 
-        private void HandleMissionStarted(MissionData mission)
-        {
-            SetAlpha(_completedBanner, 0f);
-            SetAlpha(_failedBanner, 0f);
-            _activeBanner = null;
-
-            RefreshStatic();
-            RefreshDynamic();
-            ShowPanel();
-
-            _lastKnownState = MissionManager.MissionState.Active;
-        }
-
-        private void HandleMissionCompleted(MissionData mission)
-        {
-            // Dernier refresh avec tout coché
-            RefreshDynamic();
-            ShowPanel();
-            ShowBanner(_completedBanner);
-
-            _lastKnownState = MissionManager.MissionState.Completed;
-        }
-
-        private void HandleMissionFailed(MissionData mission)
-        {
-            ShowBanner(_failedBanner);
-            _lastKnownState = MissionManager.MissionState.Failed;
-        }
-
-        private void HandleProgressChanged()
+        private void HandleObjectivesChanged()
         {
             RefreshDynamic();
-            ShowPanel();
+        }
+
+        private void HandleMissionEnded(MissionManager.MissionOutcome outcome)
+        {
+            // Affichage PERMANENT du banner
+            if (outcome == MissionManager.MissionOutcome.Success)
+                ShowBannerPermanent(_completedBanner);
+            else
+                ShowBannerPermanent(_failedBanner);
         }
 
         private void HandleMissionToggle()
@@ -270,7 +222,7 @@ namespace VoidWarranty.UI
         // Refresh
         // =====================================================================
 
-        /// <summary>Titre + description (ne change pas pendant la mission).</summary>
+        /// <summary>Titre (ne change pas pendant la mission).</summary>
         private void RefreshStatic()
         {
             var mm = MissionManager.Instance;
@@ -278,9 +230,6 @@ namespace VoidWarranty.UI
 
             if (_missionTitle != null)
                 _missionTitle.text = LocalizationManager.Get(mm.CurrentMission.NameKey);
-
-            if (_missionDescription != null)
-                _missionDescription.text = LocalizationManager.Get(mm.CurrentMission.DescriptionKey);
         }
 
         /// <summary>Objectifs + timer (change chaque frame).</summary>
@@ -291,26 +240,11 @@ namespace VoidWarranty.UI
 
             var mission = mm.CurrentMission;
 
-            // Objectifs
-            if (_objectivesText != null)
+            // Affichage des objectifs
+            if (_currentStepText != null)
             {
-                string objectives = "";
-
-                if (mission.RequiredPatientsRepaired > 0)
-                {
-                    bool done = mm.PatientsRepaired.Value >= mission.RequiredPatientsRepaired;
-                    string check = done ? "<color=#00FF00>\u2713</color>" : "\u25CB";
-                    objectives += $"{check} {LocalizationManager.Get("HUD_PATIENTS_REPAIRED")} : {mm.PatientsRepaired.Value}/{mission.RequiredPatientsRepaired}\n";
-                }
-
-                if (mission.RequiredDefectivePartsRecovered > 0)
-                {
-                    bool done = mm.PartsRecovered.Value >= mission.RequiredDefectivePartsRecovered;
-                    string check = done ? "<color=#00FF00>\u2713</color>" : "\u25CB";
-                    objectives += $"{check} {LocalizationManager.Get("HUD_PARTS_RECOVERED")} : {mm.PartsRecovered.Value}/{mission.RequiredDefectivePartsRecovered}\n";
-                }
-
-                _objectivesText.text = objectives.TrimEnd('\n');
+                string objectives = BuildObjectivesText(mm);
+                _currentStepText.text = objectives;
             }
 
             // Timer
@@ -333,33 +267,36 @@ namespace VoidWarranty.UI
             }
         }
 
+        private string BuildObjectivesText(MissionManager mm)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"<b>{LocalizationManager.Get("HUD_OBJECTIVES")}</b>");
+
+            // Objectif principal : Réparer le patient
+            string patientIcon = mm.IsPatientRepaired() ? "✓" : "○";
+            sb.AppendLine($"{patientIcon} {LocalizationManager.Get("OBJECTIVE_REPAIR_PATIENT")}");
+
+            // Objectifs optionnels
+            sb.AppendLine($"\n<b>{LocalizationManager.Get("HUD_OPTIONAL_OBJECTIVES")}</b>");
+
+            string partIcon = mm.IsDefectivePartReturned() ? "✓" : "○";
+            sb.AppendLine($"{partIcon} {LocalizationManager.Get("OBJECTIVE_RETURN_PART")}");
+
+            return sb.ToString();
+        }
+
         // =====================================================================
         // Banners
         // =====================================================================
 
-        private void ShowBanner(CanvasGroup banner)
+        /// <summary>Affiche un banner de façon PERMANENTE (ne fade jamais).</summary>
+        private void ShowBannerPermanent(CanvasGroup banner)
         {
             if (banner == null) return;
 
-            _activeBanner = banner;
-            banner.alpha = 1f;
-            _bannerShowTimer = _bannerDuration;
-        }
-
-        private void UpdateBannerFade()
-        {
-            if (_activeBanner == null || _activeBanner.alpha <= 0f) return;
-
-            if (_bannerShowTimer > 0f)
-            {
-                _bannerShowTimer -= Time.deltaTime;
-            }
-            else
-            {
-                _activeBanner.alpha = Mathf.MoveTowards(_activeBanner.alpha, 0f, Time.deltaTime * _fadeSpeed);
-                if (_activeBanner.alpha <= 0f)
-                    _activeBanner = null;
-            }
+            SetAlpha(banner, 1f);
+            banner.blocksRaycasts = true;
+            banner.interactable = true;
         }
 
         // =====================================================================

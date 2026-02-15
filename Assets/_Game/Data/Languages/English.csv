@@ -19,8 +19,15 @@ ITEM_TOOLBOX_DESC;Required for repairs.
 MSG_CONTRACT_VALID;Contract Validated!
 MSG_CONTRACT_INVALID;Wrong Item! This is new.
 MISSION_PROTO_NAME;Mission prototype
-MISSION_PROTO_DESC;Répair server and get defect module
-HUD_PATIENTS_REPAIRED;Patients repaired
-HUD_PARTS_RECOVERED;Pièces gathered
+MISSION_PROTO_DESC;Repair the patient. Return defective part and tools for extra rewards.
 MISSION_COMPLETED;Mission finish !
 MISSION_FAILED;Mission failed !
+HUD_OBJECTIVES;Objectives
+HUD_OPTIONAL_OBJECTIVES;Optional Objectives
+OBJECTIVE_REPAIR_PATIENT;Repair the patient
+OBJECTIVE_RETURN_PART;Return the defective part
+OBJECTIVE_RETURN_TOOLS;Return tools
+INTERACT_EXTRACT;Extract (leave) [E]
+MISSION_EXTRACTED_SUCCESS;Extraction successful
+MISSION_EXTRACTED_FAILURE;Extraction failed
+CURRENCY_SCRAP;scrap

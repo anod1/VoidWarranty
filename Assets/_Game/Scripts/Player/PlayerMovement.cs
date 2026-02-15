@@ -81,6 +81,8 @@ namespace VoidWarranty.Player
                 return;
             }
 
+            // Définir ce reader comme le LocalInstance (seulement pour l'owner)
+            _inputReader.SetAsLocalInstance();
             _inputReader.OnJumpEvent += HandleJump;
 
             Cursor.lockState = CursorLockMode.Locked;

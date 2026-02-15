@@ -5,6 +5,9 @@ namespace VoidWarranty.Player
 {
     public class PlayerInputReader : MonoBehaviour, GameControls.IPlayerActions
     {
+        // Singleton pour le PlayerInputReader LOCAL (celui du joueur possédé)
+        public static PlayerInputReader LocalInstance { get; private set; }
+
         public Vector2 MoveInput { get; private set; }
         public Vector2 LookInput { get; private set; }
         public bool IsSprinting { get; private set; }
@@ -32,7 +35,20 @@ namespace VoidWarranty.Player
 
         private void OnDisable()
         {
-            _controls.Player.Disable();
+            if (LocalInstance == this)
+                LocalInstance = null;
+
+            _controls?.Player.Disable();
+        }
+
+        /// <summary>
+        /// Appelé par PlayerMovement.OnStartClient() uniquement pour le joueur local (IsOwner).
+        /// Évite qu'un joueur non-owner écrase le singleton au spawn.
+        /// </summary>
+        public void SetAsLocalInstance()
+        {
+            LocalInstance = this;
+            Debug.Log("[PlayerInputReader] LocalInstance défini pour le joueur local.");
         }
 
         public void OnMove(InputAction.CallbackContext context)
@@ -76,7 +92,8 @@ namespace VoidWarranty.Player
 
         public void OnMissionToggle(InputAction.CallbackContext context)
         {
-            if (context.started) OnMissionToggleEvent?.Invoke();
+            if (context.started)
+                OnMissionToggleEvent?.Invoke();
         }
 
         // Non utilisés pour l'instant

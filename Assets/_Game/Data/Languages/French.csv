@@ -26,8 +26,15 @@ FEEDBACK_NEED_SPARE_PART;Il vous faut la pièce de rechange
 FEEDBACK_WRONG_PART;Cette pièce n'est pas compatible
 ITEM_SUPPLY_CRATE;Caisse de livraison
 MISSION_PROTO_NAME;Mission prototype
-MISSION_PROTO_DESC;Réparer le serveur et ramener la piece defectueuse
-HUD_PATIENTS_REPAIRED;Patients réparés
-HUD_PARTS_RECOVERED;Pièces récupérées
+MISSION_PROTO_DESC;Réparer le patient. Ramener pièce défectueuse et outils pour plus de récompenses.
 MISSION_COMPLETED;Mission terminée !
 MISSION_FAILED;Mission échouée !
+HUD_OBJECTIVES;Objectifs
+HUD_OPTIONAL_OBJECTIVES;Objectifs optionnels
+OBJECTIVE_REPAIR_PATIENT;Réparer le patient
+OBJECTIVE_RETURN_PART;Ramener la pièce défectueuse
+OBJECTIVE_RETURN_TOOLS;Ramener les outils
+INTERACT_EXTRACT;Extraire (quitter) [E]
+MISSION_EXTRACTED_SUCCESS;Extraction réussie
+MISSION_EXTRACTED_FAILURE;Extraction échouée
+CURRENCY_SCRAP;scrap

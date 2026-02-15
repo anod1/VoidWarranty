@@ -8,13 +8,17 @@ using VoidWarranty.UI;
 namespace VoidWarranty.Core
 {
     /// <summary>
-    /// Gère la mission/contrat en cours.
-    /// - S'abonne aux événements du GameManager (découplé)
-    /// - Suit la progression des objectifs
-    /// - Gère le timer si la mission a une limite de temps
-    /// - Émet des événements pour le UI (futur)
+    /// Gère la mission avec un système d'objectifs libre (Tarkov-like).
+    /// Le joueur peut extract à tout moment via le camion.
     ///
-    /// Ce script ne gère PAS : l'affichage UI, le choix de mission (futur menu).
+    /// Objectifs :
+    /// - Obligatoire : Réparer le patient (pour mission success + débloquer niveau suivant)
+    /// - Optionnel : Ramener pièce défectueuse (bonus argent)
+    /// - Optionnel : Ramener outils (gardés pour prochaine mission, sinon perdus)
+    ///
+    /// Extraction :
+    /// - Success (patient réparé) : +Scrap + débloquer niveau suivant
+    /// - Échec (patient pas réparé) : -Coût expédition
     /// </summary>
     public class MissionManager : NetworkBehaviour
     {
@@ -25,34 +29,44 @@ namespace VoidWarranty.Core
         public static MissionManager Instance { get; private set; }
 
         // =====================================================================
+        // Enums
+        // =====================================================================
+
+        public enum MissionState { Idle, Active, Extracted }
+        public enum MissionOutcome { None, Success, Failure }
+
+        // =====================================================================
         // Configuration
         // =====================================================================
 
         [Header("Mission active")]
         [SerializeField] private MissionData _currentMission;
 
+        [Header("Pénalités")]
+        [SerializeField] private int _failurePenalty = 50; // Coût de l'expédition ratée
+
         // =====================================================================
         // État (synchronisé sur le réseau)
         // =====================================================================
 
-        public enum MissionState { Idle, Active, Completed, Failed }
-
-        public readonly SyncVar<int> State = new();
+        public readonly SyncVar<int> State = new(); // MissionState
+        public readonly SyncVar<int> Outcome = new(); // MissionOutcome
         public readonly SyncVar<float> TimeRemaining = new();
-        public readonly SyncVar<int> PatientsRepaired = new();
-        public readonly SyncVar<int> PartsRecovered = new();
 
-        /// <summary>La mission active (lecture seule, côté client via les SyncVars).</summary>
+        // Objectifs trackés
+        public readonly SyncVar<bool> PatientRepaired = new();
+        public readonly SyncVar<bool> DefectivePartReturned = new();
+
+        /// <summary>La mission active (lecture seule).</summary>
         public MissionData CurrentMission => _currentMission;
 
         // =====================================================================
-        // Événements (pour le futur UI)
+        // Événements
         // =====================================================================
 
-        public event Action<MissionData> OnMissionStarted;
-        public event Action<MissionData> OnMissionCompleted;
-        public event Action<MissionData> OnMissionFailed;
-        public event Action OnObjectiveProgressChanged;
+        public event Action OnMissionStarted;
+        public event Action<MissionOutcome> OnMissionEnded;
+        public event Action OnObjectivesChanged; // Quand un objectif est complété
 
         // =====================================================================
         // Lifecycle
@@ -110,7 +124,7 @@ namespace VoidWarranty.Core
         {
             if (GameManager.Instance == null)
             {
-                Debug.LogWarning("[MissionManager] GameManager introuvable. Le MissionManager doit être chargé après le GameManager.");
+                Debug.LogWarning("[MissionManager] GameManager introuvable.");
                 return;
             }
 
@@ -127,10 +141,9 @@ namespace VoidWarranty.Core
         }
 
         // =====================================================================
-        // Démarrage / Arrêt de mission
+        // Démarrage de mission
         // =====================================================================
 
-        /// <summary>Démarre une mission. Appelé côté serveur uniquement.</summary>
         [Server]
         public void StartMission(MissionData mission)
         {
@@ -142,11 +155,12 @@ namespace VoidWarranty.Core
 
             _currentMission = mission;
 
-            // Reset des compteurs
-            PatientsRepaired.Value = 0;
-            PartsRecovered.Value = 0;
-            TimeRemaining.Value = mission.TimeLimit;
+            // Reset
             State.Value = (int)MissionState.Active;
+            Outcome.Value = (int)MissionOutcome.None;
+            TimeRemaining.Value = mission.TimeLimit;
+            PatientRepaired.Value = false;
+            DefectivePartReturned.Value = false;
 
             Debug.Log($"[MissionManager] Mission démarrée : {mission.NameKey}");
 
@@ -156,35 +170,95 @@ namespace VoidWarranty.Core
         [ObserversRpc]
         private void ObserversNotifyMissionStarted()
         {
-            OnMissionStarted?.Invoke(_currentMission);
+            OnMissionStarted?.Invoke();
         }
 
         // =====================================================================
-        // Handlers — réagit aux événements du GameManager
+        // Handlers — Objectifs
         // =====================================================================
 
         private void HandlePatientRepaired(PatientObject patient)
         {
             if ((MissionState)State.Value != MissionState.Active) return;
 
-            PatientsRepaired.Value++;
-            OnObjectiveProgressChanged?.Invoke();
+            PatientRepaired.Value = true;
+            Debug.Log("[MissionManager] Objectif complété : Patient réparé");
 
-            Debug.Log($"[MissionManager] Objectif patients : {PatientsRepaired.Value}/{_currentMission.RequiredPatientsRepaired}");
-
-            CheckCompletion();
+            ObserversNotifyObjectivesChanged();
         }
 
         private void HandlePartRecovered(ItemData data)
         {
             if ((MissionState)State.Value != MissionState.Active) return;
 
-            PartsRecovered.Value++;
-            OnObjectiveProgressChanged?.Invoke();
+            DefectivePartReturned.Value = true;
+            Debug.Log("[MissionManager] Objectif optionnel complété : Pièce défectueuse ramenée");
 
-            Debug.Log($"[MissionManager] Objectif pièces : {PartsRecovered.Value}/{_currentMission.RequiredDefectivePartsRecovered}");
+            ObserversNotifyObjectivesChanged();
+        }
 
-            CheckCompletion();
+        [ObserversRpc]
+        private void ObserversNotifyObjectivesChanged()
+        {
+            OnObjectivesChanged?.Invoke();
+        }
+
+        // =====================================================================
+        // Extraction
+        // =====================================================================
+
+        /// <summary>
+        /// Appelé par TruckZone quand le joueur clique sur le bouton d'extraction.
+        /// Le joueur peut extract à tout moment.
+        /// </summary>
+        [Server]
+        public void Extract()
+        {
+            if ((MissionState)State.Value != MissionState.Active)
+            {
+                Debug.LogWarning("[MissionManager] Tentative d'extraction mais mission pas active.");
+                return;
+            }
+
+            State.Value = (int)MissionState.Extracted;
+
+            // Calculer le résultat
+            MissionOutcome outcome = PatientRepaired.Value ? MissionOutcome.Success : MissionOutcome.Failure;
+
+            // Calculer les récompenses/pénalités
+            int totalReward = CalculateReward(outcome);
+
+            Debug.Log($"[MissionManager] Extraction ! Outcome: {outcome}, Récompense totale: {totalReward} scrap");
+
+            EndMission(outcome, totalReward);
+        }
+
+        private int CalculateReward(MissionOutcome outcome)
+        {
+            int total = 0;
+
+            if (outcome == MissionOutcome.Success)
+            {
+                // Mission réussie : récompense de base
+                total += _currentMission.ScrapReward;
+                Debug.Log($"[MissionManager] +{_currentMission.ScrapReward} scrap (mission success)");
+
+                // Bonus pièce défectueuse ramenée
+                if (DefectivePartReturned.Value)
+                {
+                    int bonus = _currentMission.DefectivePartBonus;
+                    total += bonus;
+                    Debug.Log($"[MissionManager] +{bonus} scrap (pièce défectueuse ramenée)");
+                }
+            }
+            else
+            {
+                // Mission ratée : pénalité
+                total -= _failurePenalty;
+                Debug.Log($"[MissionManager] -{_failurePenalty} scrap (pénalité expédition ratée)");
+            }
+
+            return total;
         }
 
         // =====================================================================
@@ -200,89 +274,75 @@ namespace VoidWarranty.Core
             if (TimeRemaining.Value <= 0f)
             {
                 TimeRemaining.Value = 0f;
-                FailMission();
+                ForceExtractTimeout();
             }
         }
 
-        // =====================================================================
-        // Vérification de complétion
-        // =====================================================================
-
         [Server]
-        private void CheckCompletion()
+        private void ForceExtractTimeout()
         {
-            if (_currentMission == null) return;
-
-            bool patientsOk = _currentMission.RequiredPatientsRepaired <= 0
-                              || PatientsRepaired.Value >= _currentMission.RequiredPatientsRepaired;
-
-            bool partsOk = _currentMission.RequiredDefectivePartsRecovered <= 0
-                           || PartsRecovered.Value >= _currentMission.RequiredDefectivePartsRecovered;
-
-            if (patientsOk && partsOk)
-                CompleteMission();
+            Debug.Log("[MissionManager] Temps écoulé ! Extraction forcée.");
+            Extract(); // Extraction automatique
         }
 
-        [Server]
-        private void CompleteMission()
-        {
-            State.Value = (int)MissionState.Completed;
-
-            Debug.Log($"[MissionManager] Mission complétée : {_currentMission.NameKey} — Récompense : {_currentMission.ScrapReward} scrap");
-
-            ObserversNotifyMissionCompleted();
-        }
+        // =====================================================================
+        // Fin de mission
+        // =====================================================================
 
         [Server]
-        private void FailMission()
+        private void EndMission(MissionOutcome outcome, int totalReward)
         {
-            State.Value = (int)MissionState.Failed;
+            Outcome.Value = (int)outcome;
 
-            Debug.Log($"[MissionManager] Mission échouée : {_currentMission.NameKey} — Temps écoulé !");
+            // TODO : Donner l'argent au joueur (futur système d'économie)
+            // TODO : Débloquer le niveau suivant si success (futur système de progression)
 
-            ObserversNotifyMissionFailed();
+            ObserversNotifyMissionEnded(outcome, totalReward);
         }
 
         [ObserversRpc]
-        private void ObserversNotifyMissionCompleted()
+        private void ObserversNotifyMissionEnded(MissionOutcome outcome, int totalReward)
         {
-            OnMissionCompleted?.Invoke(_currentMission);
+            OnMissionEnded?.Invoke(outcome);
 
             if (NotificationHUD.Instance != null && _currentMission != null)
             {
                 string name = LocalizationManager.Get(_currentMission.NameKey);
-                NotificationHUD.Instance.Show($"{name} — {LocalizationManager.Get("MISSION_COMPLETED")}", 5f);
-            }
-        }
+                string status = outcome == MissionOutcome.Success
+                    ? LocalizationManager.Get("MISSION_EXTRACTED_SUCCESS")
+                    : LocalizationManager.Get("MISSION_EXTRACTED_FAILURE");
 
-        [ObserversRpc]
-        private void ObserversNotifyMissionFailed()
-        {
-            OnMissionFailed?.Invoke(_currentMission);
+                string reward = totalReward >= 0
+                    ? $"+{totalReward} {LocalizationManager.Get("CURRENCY_SCRAP")}"
+                    : $"{totalReward} {LocalizationManager.Get("CURRENCY_SCRAP")}";
 
-            if (NotificationHUD.Instance != null && _currentMission != null)
-            {
-                string name = LocalizationManager.Get(_currentMission.NameKey);
-                NotificationHUD.Instance.Show($"{name} — {LocalizationManager.Get("MISSION_FAILED")}", 5f);
+                NotificationHUD.Instance.Show($"{name} — {status}\n{reward}", 7f);
             }
         }
 
         // =====================================================================
-        // Utilitaires publics (pour le futur UI)
+        // Utilitaires publics
         // =====================================================================
 
-        /// <summary>Progression des patients (0 à 1).</summary>
-        public float GetPatientsProgress()
+        public MissionState GetState()
         {
-            if (_currentMission == null || _currentMission.RequiredPatientsRepaired <= 0) return 1f;
-            return (float)PatientsRepaired.Value / _currentMission.RequiredPatientsRepaired;
+            return (MissionState)State.Value;
         }
 
-        /// <summary>Progression des pièces récupérées (0 à 1).</summary>
-        public float GetPartsProgress()
+        public MissionOutcome GetOutcome()
         {
-            if (_currentMission == null || _currentMission.RequiredDefectivePartsRecovered <= 0) return 1f;
-            return (float)PartsRecovered.Value / _currentMission.RequiredDefectivePartsRecovered;
+            return (MissionOutcome)Outcome.Value;
         }
+
+        public bool IsPatientRepaired()
+        {
+            return PatientRepaired.Value;
+        }
+
+        public bool IsDefectivePartReturned()
+        {
+            return DefectivePartReturned.Value;
+        }
+
     }
 }
