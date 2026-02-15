@@ -23,6 +23,7 @@
 *.VC.db
 *.inputactions
 
+
 # Métadonnées Unity (trop lourd, recréé automatiquement)
 *.meta
 
@@ -30,6 +31,7 @@
 *.asset
 *.prefab
 *.unity
+*.mat
 
 # Fichiers Visual Studio
 .vs/
