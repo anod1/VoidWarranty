@@ -22,6 +22,14 @@
 *.opendb
 *.VC.db
 
+# Métadonnées Unity (trop lourd, recréé automatiquement)
+*.meta
+
+# Assets et Prefabs (lourd en YAML, pas besoin pour dev collaboratif)
+*.asset
+*.prefab
+*.unity
+
 # Fichiers Visual Studio
 .vs/
 *.csproj
@@ -35,27 +43,29 @@
 *.pdb.meta
 *.mdb.meta
 
-# Claude Code (IDE/Assistant)
+# Packages (lockfile généré, pas besoin de tracker)
+Packages/packages-lock.json
+
+# Claude Code / IDE
 .claude/
+.continue/
 
 # Fichiers temporaires OS
 .DS_Store
 Thumbs.db
 *.log
 
-# Asset Store (optionnel - décommente si tu veux les tracker)
+# Asset Store (optionnel)
 # [Aa]ssets/AssetStoreTools*
 
-# Plastic SCM (système de version Unity)
+# Plastic SCM
 .plasticscm/
 
 # ===================================
 # CE QUI EST TRACKÉ (les trucs importants) :
 # - Scripts (.cs)
-# - Scènes (.unity)
-# - Prefabs (.prefab)
-# - ScriptableObjects (.asset)
-# - Materials, textures, modèles (Assets/)
-# - Project Settings/
+# - Data/Languages (CSV)
+# - ProjectSettings/
 # - Packages/manifest.json (liste des packages)
+# - Documentation (README, GDD, etc)
 # ===================================
