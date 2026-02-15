@@ -21,23 +21,25 @@
 *.mdb
 *.opendb
 *.VC.db
-*.inputactions
-
 
 # Métadonnées Unity (trop lourd, recréé automatiquement)
 *.meta
 
-# Assets et Prefabs (lourd en YAML, pas besoin pour dev collaboratif)
+# Assets et Prefabs (lourd en YAML, pas besoin pour dev solo)
 *.asset
 *.prefab
 *.unity
 *.mat
+
+# Input System (généré automatiquement par Unity)
+*.inputactions
 
 # Fichiers Visual Studio
 .vs/
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -68,7 +70,6 @@ Thumbs.db
 # CE QUI EST TRACKÉ (les trucs importants) :
 # - Scripts (.cs)
 # - Data/Languages (CSV)
-# - ProjectSettings/
-# - Packages/manifest.json (liste des packages)
+# - ProjectSettings/ (config du projet)
 # - Documentation (README, GDD, etc)
 # ===================================
