@@ -50,6 +50,13 @@
 
 # Packages (lockfile généré, pas besoin de tracker)
 Packages/packages-lock.json
+Packages/
+
+# Art Assets (textures, sprites, etc. - trop lourd)
+Assets/_Game/Art/Textures/
+
+# ProjectSettings Packages (généré auto)
+ProjectSettings/Packages/
 
 # Claude Code / IDE
 .claude/
