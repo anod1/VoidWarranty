@@ -21,6 +21,7 @@
 *.mdb
 *.opendb
 *.VC.db
+*.inputactions
 
 # Métadonnées Unity (trop lourd, recréé automatiquement)
 *.meta
