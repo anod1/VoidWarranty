@@ -1,24 +1,27 @@
-# 🎮 Guide de Configuration - Boucle de Gameplay (Tarkov-like)
+# Guide de Configuration - Boucle de Gameplay (Tarkov-like)
 
-## 📋 Vue d'ensemble
+## Vue d'ensemble
 
-La boucle de gameplay utilise un **système d'objectifs flexible** inspiré de Tarkov :
+**Setting** : Petite ville americaine, annees 1990 (ambiance Stranger Things).
+Les joueurs sont des techniciens envoyes reparer des machines infectees par une force surnaturelle.
+
+La boucle de gameplay utilise un **systeme d'objectifs flexible** inspire de Tarkov :
 
 ### Philosophie
-- **Extraction libre** : Le joueur peut partir à tout moment
-- **Objectifs optionnels** : Seul réparer le patient est obligatoire pour le succès
-- **Risk/Reward** : Plus d'objectifs = plus de récompenses, mais plus de risque
+- **Extraction libre** : Le joueur peut partir a tout moment
+- **Objectifs optionnels** : Seul reparer le patient est obligatoire pour le succes
+- **Risk/Reward** : Plus d'objectifs = plus de recompenses, mais plus de risque
 
 ### Objectifs
-1. **Principal (requis pour succès)** : Réparer le patient
+1. **Principal (requis pour succes)** : Reparer le patient (machine infectee)
 2. **Optionnels (bonus)** :
-   - Ramener la pièce défectueuse au camion (+scrap bonus)
-   - Ramener les outils au camion (gardés pour prochaine mission, sinon perdus)
+   - Ramener la piece defectueuse au camion (+scrap bonus)
+   - Ramener les outils au camion (gardes pour prochaine mission, sinon perdus)
 
 ### Extraction
-- Le joueur peut **extract à tout moment** via le bouton du camion
-- **Success** : Patient réparé → +Scrap + bonus optionnels
-- **Failure** : Patient pas réparé → -Pénalité expédition
+- Le joueur peut **extract a tout moment** via le bouton du camion (van de technicien)
+- **Success** : Patient repare -> +Scrap + bonus optionnels
+- **Failure** : Patient pas repare -> -Penalite expedition
 
 ---
 
@@ -233,17 +236,18 @@ Les missions configurées avec l'ancien système (state machine) sont **automati
 
 ---
 
-## 🚀 Prochaines Améliorations
+## Prochaines Ameliorations
 
-- [ ] Menu de sélection de mission avant le gameplay
-- [ ] Retour automatique au menu après le Debrief
-- [ ] Système de mort : perdre tout ce qu'on n'a pas ramené au camion
-- [ ] Système d'économie : achat/vente d'outils
+- [ ] Menu de selection de mission avant le gameplay
+- [ ] Retour automatique au menu apres le Debrief
+- [ ] Systeme de mort : perdre tout ce qu'on n'a pas ramene au camion
+- [ ] Systeme d'economie : achat/vente d'outils
 - [ ] Feedback visuel pour chaque objectif (checkmarks, highlights)
-- [ ] Support multi-patients (plusieurs patients à réparer)
+- [ ] Support multi-patients (plusieurs patients a reparer)
+- [ ] Creatures paranormales (menace Stranger Things)
+- [ ] Environnements annees 90 (garage, sous-sol, station-service, foret)
 
 ---
 
-**Auteur** : Claude Sonnet 4.5
-**Date** : 2026-02-15
-**Version** : v2.0 (Tarkov-like Refactor)
+**Date** : 2026-02-16
+**Version** : v2.1 (Setting annees 90 + Tarkov-like)
