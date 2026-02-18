@@ -54,6 +54,7 @@ Packages/
 
 # Art Assets (textures, sprites, etc. - trop lourd)
 Assets/_Game/Art/Textures/
+Assets/_Game/Audio/Samples/
 
 # ProjectSettings Packages (généré auto)
 ProjectSettings/Packages/
