@@ -96,6 +96,14 @@ namespace VoidWarranty.Player
                 OnMissionToggleEvent?.Invoke();
         }
 
+        public bool IsHoldingBreath { get; private set; }
+
+        public void OnHoldBreath(InputAction.CallbackContext context)
+        {
+            if (context.performed) IsHoldingBreath = true;
+            else if (context.canceled) IsHoldingBreath = false;
+        }
+
         // Non utilisés pour l'instant
         public void OnAttack(InputAction.CallbackContext context) { }
         public void OnPrevious(InputAction.CallbackContext context) { }

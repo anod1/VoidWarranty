@@ -1,5 +1,7 @@
 using UnityEngine;
 using FishNet.Object;
+using FishNet.Object.Synchronizing;
+using FishNet.Transporting;
 
 namespace VoidWarranty.Player
 {
@@ -53,6 +55,35 @@ namespace VoidWarranty.Player
         // On sauvegarde la position initiale de la cam�ra (d�finie dans le prefab)
         private float _standingCameraHeight;
 
+        // Noise level LOCAL (calculé côté owner client uniquement)
+        // 0 = silence, 0.3 = crouch walk, 0.6 = walk, 1 = sprint
+        private float _currentNoiseLevel;
+
+        // SyncVar : répliqué owner → serveur → tous les clients (UDP unreliable).
+        // Permet à DrifterAI (server) et PlayerFootsteps (remote clients) de lire le bon niveau.
+        private readonly SyncVar<float> _syncedNoiseLevel = new(new SyncTypeSettings(Channel.Unreliable));
+
+        // Throttle : on ne sync que si la valeur change significativement
+        private float _lastSyncedNoiseLevel = -1f;
+        private const float NoiseSyncThreshold = 0.05f;
+
+        /// <summary>
+        /// Noise level [0..1] lisible sur tous les contextes réseau.
+        /// Owner → valeur locale immédiate (pas de latence).
+        /// Serveur/Clients → valeur synchro via SyncVar.
+        /// </summary>
+        public float NoiseLevel => base.IsOwner ? _currentNoiseLevel : _syncedNoiseLevel.Value;
+
+        /// <summary>True si le joueur est physiquement accroupi.</summary>
+        public bool IsCrouching => _isCrouchingPhysically;
+
+        // Hidden look (cachette Alien Isolation style)
+        private bool _isInHiddenLook;
+        private float _hiddenYawMin, _hiddenYawMax;
+        private float _hiddenPitchMin, _hiddenPitchMax;
+        private float _baseYaw;
+        private float _hiddenYaw;
+
         private void Awake()
         {
             _characterController = GetComponent<CharacterController>();
@@ -98,6 +129,21 @@ namespace VoidWarranty.Player
         private void Update()
         {
             if (!base.IsOwner) return;
+
+            if (_isInHiddenLook)
+            {
+                if (_currentNoiseLevel != 0f)
+                {
+                    _currentNoiseLevel = 0f;
+                    if (_lastSyncedNoiseLevel != 0f)
+                    {
+                        _lastSyncedNoiseLevel = 0f;
+                        _syncedNoiseLevel.Value = 0f;
+                    }
+                }
+                HandleHiddenRotation();
+                return;
+            }
 
             HandleRotation();
             HandleCrouch();
@@ -209,6 +255,20 @@ namespace VoidWarranty.Player
             // Gravité
             _velocity.y += _gravity * Time.deltaTime;
 
+            // Noise level pour la detection IA
+            bool isMoving = moveDir.sqrMagnitude > 0.01f;
+            if (!isMoving) _currentNoiseLevel = 0f;
+            else if (_isCrouchingPhysically) _currentNoiseLevel = 0.3f;
+            else if (_inputReader.IsSprinting) _currentNoiseLevel = 1f;
+            else _currentNoiseLevel = 0.6f;
+
+            // Sync vers serveur + autres clients via SyncVar (throttlé, unreliable UDP)
+            if (Mathf.Abs(_currentNoiseLevel - _lastSyncedNoiseLevel) >= NoiseSyncThreshold)
+            {
+                _lastSyncedNoiseLevel = _currentNoiseLevel;
+                _syncedNoiseLevel.Value = _currentNoiseLevel;
+            }
+
             // Mouvement horizontal + vertical
             _characterController.Move((moveDir * dynamicSpeed + _velocity) * Time.deltaTime);
 
@@ -220,6 +280,75 @@ namespace VoidWarranty.Player
                     _characterController.Move(Vector3.down * (hit.distance - _characterController.height / 2f + _characterController.skinWidth));
                 }
             }
+        }
+
+        // =====================================================================
+        // Public API — Hiding System
+        // =====================================================================
+
+        public void Teleport(Vector3 position)
+        {
+            _characterController.enabled = false;
+            transform.position = position;
+            _characterController.enabled = true;
+            Physics.SyncTransforms();
+        }
+
+        public void ForceSetCrouchHeight(bool crouch)
+        {
+            _characterController.enabled = false;
+            _characterController.height = crouch ? _crouchHeight : _standHeight;
+            _characterController.center = Vector3.zero;
+            _characterController.enabled = true;
+            Physics.SyncTransforms();
+
+            if (_cameraHolder != null)
+            {
+                float targetCamHeight = crouch
+                    ? _standingCameraHeight - _crouchCameraOffset
+                    : _standingCameraHeight;
+                Vector3 camPos = _cameraHolder.localPosition;
+                camPos.y = targetCamHeight;
+                _cameraHolder.localPosition = camPos;
+            }
+        }
+
+        public void EnableHiddenLook(float yawRange, float pitchRange)
+        {
+            _isInHiddenLook = true;
+            _baseYaw = transform.eulerAngles.y;
+            _hiddenYaw = 0f;
+            _hiddenYawMin = -yawRange * 0.5f;
+            _hiddenYawMax = yawRange * 0.5f;
+            _hiddenPitchMin = -pitchRange * 0.5f;
+            _hiddenPitchMax = pitchRange * 0.5f;
+            _verticalRotation = 0f;
+
+            if (_cameraTarget != null)
+                _cameraTarget.localRotation = Quaternion.identity;
+        }
+
+        public void DisableHiddenLook()
+        {
+            _isInHiddenLook = false;
+        }
+
+        private void HandleHiddenRotation()
+        {
+            Vector2 look = _inputReader.LookInput;
+            float mouseX = look.x * _lookSensitivityX;
+            float mouseY = look.y * _lookSensitivityY;
+
+            _hiddenYaw += mouseX;
+            _hiddenYaw = Mathf.Clamp(_hiddenYaw, _hiddenYawMin, _hiddenYawMax);
+
+            _verticalRotation -= mouseY;
+            _verticalRotation = Mathf.Clamp(_verticalRotation, _hiddenPitchMin, _hiddenPitchMax);
+
+            transform.rotation = Quaternion.Euler(0f, _baseYaw + _hiddenYaw, 0f);
+
+            if (_cameraTarget != null)
+                _cameraTarget.localRotation = Quaternion.Euler(_verticalRotation, 0f, 0f);
         }
 
         [ContextMenu("Debug Character Controller")]
