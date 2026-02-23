@@ -77,12 +77,27 @@ namespace VoidWarranty.Player
         /// <summary>True si le joueur est physiquement accroupi.</summary>
         public bool IsCrouching => _isCrouchingPhysically;
 
+        // Freeze (valve turning, etc.) — plus simple que HiddenLook, aucun mouselook
+        private bool _isFrozen;
+
+        // Noise override : force le NoiseLevel à une valeur fixe (ex: vanne bruyante)
+        // -1 = pas d'override, >= 0 = valeur forcée
+        private float _noiseOverride = -1f;
+
         // Hidden look (cachette Alien Isolation style)
         private bool _isInHiddenLook;
         private float _hiddenYawMin, _hiddenYawMax;
         private float _hiddenPitchMin, _hiddenPitchMax;
         private float _baseYaw;
         private float _hiddenYaw;
+
+        // Valve look : freeze movement MAIS mouselook limité (le joueur regarde la vanne)
+        // Différent de _isFrozen (qui bloque TOUT) et de _isInHiddenLook (cachettes)
+        private bool _isInValveLook;
+        private float _valveYawMin, _valveYawMax;
+        private float _valvePitchMin, _valvePitchMax;
+        private float _valveBaseYaw;
+        private float _valveYaw;
 
         private void Awake()
         {
@@ -130,6 +145,22 @@ namespace VoidWarranty.Player
         {
             if (!base.IsOwner) return;
 
+            // Valve look : frozen movement MAIS mouselook limité (vanne analogique)
+            // Testé AVANT _isFrozen pour que les deux ne se court-circuitent pas.
+            if (_isInValveLook)
+            {
+                SyncNoiseOverride();
+                HandleValveRotation();
+                return;
+            }
+
+            // Frozen state (valve turning ancienne, etc.) — no movement, no look
+            if (_isFrozen)
+            {
+                SyncNoiseOverride();
+                return;
+            }
+
             if (_isInHiddenLook)
             {
                 if (_currentNoiseLevel != 0f)
@@ -148,6 +179,24 @@ namespace VoidWarranty.Player
             HandleRotation();
             HandleCrouch();
             HandleMovement();
+        }
+
+        /// <summary>
+        /// Sync le noise override (ou 0 si pas d'override) vers le réseau.
+        /// Utilisé par les états frozen et valve look.
+        /// </summary>
+        private void SyncNoiseOverride()
+        {
+            float targetNoise = _noiseOverride >= 0f ? _noiseOverride : 0f;
+            if (_currentNoiseLevel != targetNoise)
+            {
+                _currentNoiseLevel = targetNoise;
+                if (Mathf.Abs(_currentNoiseLevel - _lastSyncedNoiseLevel) >= NoiseSyncThreshold)
+                {
+                    _lastSyncedNoiseLevel = _currentNoiseLevel;
+                    _syncedNoiseLevel.Value = _currentNoiseLevel;
+                }
+            }
         }
 
         private void HandleRotation()
@@ -256,11 +305,18 @@ namespace VoidWarranty.Player
             _velocity.y += _gravity * Time.deltaTime;
 
             // Noise level pour la detection IA
-            bool isMoving = moveDir.sqrMagnitude > 0.01f;
-            if (!isMoving) _currentNoiseLevel = 0f;
-            else if (_isCrouchingPhysically) _currentNoiseLevel = 0.3f;
-            else if (_inputReader.IsSprinting) _currentNoiseLevel = 1f;
-            else _currentNoiseLevel = 0.6f;
+            if (_noiseOverride >= 0f)
+            {
+                _currentNoiseLevel = _noiseOverride;
+            }
+            else
+            {
+                bool isMoving = moveDir.sqrMagnitude > 0.01f;
+                if (!isMoving) _currentNoiseLevel = 0f;
+                else if (_isCrouchingPhysically) _currentNoiseLevel = 0.3f;
+                else if (_inputReader.IsSprinting) _currentNoiseLevel = 1f;
+                else _currentNoiseLevel = 0.6f;
+            }
 
             // Sync vers serveur + autres clients via SyncVar (throttlé, unreliable UDP)
             if (Mathf.Abs(_currentNoiseLevel - _lastSyncedNoiseLevel) >= NoiseSyncThreshold)
@@ -331,6 +387,91 @@ namespace VoidWarranty.Player
         public void DisableHiddenLook()
         {
             _isInHiddenLook = false;
+        }
+
+        // =====================================================================
+        // Public API — Freeze & Noise Override
+        // =====================================================================
+
+        /// <summary>
+        /// Freeze all movement and look input. Player is completely immobile.
+        /// Used during valve turning and similar locked interactions.
+        /// </summary>
+        public void FreezeMovement()
+        {
+            _isFrozen = true;
+        }
+
+        /// <summary>
+        /// Restore normal movement after freeze.
+        /// </summary>
+        public void UnfreezeMovement()
+        {
+            _isFrozen = false;
+        }
+
+        /// <summary>
+        /// Force NoiseLevel to a fixed value (0-1). Overrides normal movement-based calculation.
+        /// Used by loud interactions (valve turning = 0.9).
+        /// </summary>
+        public void SetNoiseOverride(float level)
+        {
+            _noiseOverride = Mathf.Clamp01(level);
+        }
+
+        /// <summary>
+        /// Clear the noise override. NoiseLevel returns to normal movement-based calculation.
+        /// </summary>
+        public void ClearNoiseOverride()
+        {
+            _noiseOverride = -1f;
+        }
+
+        // =====================================================================
+        // Public API — Valve Look (mouselook limité pendant interaction vanne)
+        // =====================================================================
+
+        /// <summary>
+        /// Active le valve look : le joueur ne peut plus bouger mais peut regarder autour
+        /// dans un cône limité (pour voir sa vanne + l'environnement proche).
+        /// Contrairement à FreezeMovement(), le mouselook reste actif dans les limites données.
+        /// </summary>
+        public void EnableValveLook(float yawRange, float pitchRange)
+        {
+            _isInValveLook = true;
+            _valveBaseYaw = transform.eulerAngles.y;
+            _valveYaw = 0f;
+            _valveYawMin = -yawRange * 0.5f;
+            _valveYawMax = yawRange * 0.5f;
+            _valvePitchMin = -pitchRange * 0.5f;
+            _valvePitchMax = pitchRange * 0.5f;
+            _verticalRotation = Mathf.Clamp(_verticalRotation, _valvePitchMin, _valvePitchMax);
+        }
+
+        /// <summary>
+        /// Désactive le valve look et restaure le mouvement normal.
+        /// </summary>
+        public void DisableValveLook()
+        {
+            _isInValveLook = false;
+        }
+
+        private void HandleValveRotation()
+        {
+            Vector2 look = _inputReader.LookInput;
+            float mouseX = look.x * _lookSensitivityX;
+            float mouseY = look.y * _lookSensitivityY;
+
+            _valveYaw += mouseX;
+            _valveYaw = Mathf.Clamp(_valveYaw, _valveYawMin, _valveYawMax);
+
+            _verticalRotation -= mouseY;
+            _verticalRotation = Mathf.Clamp(_verticalRotation, _valvePitchMin, _valvePitchMax);
+
+            transform.rotation = Quaternion.Euler(0f, _valveBaseYaw + _valveYaw, 0f);
+
+            if (_cameraTarget != null)
+                _cameraTarget.localRotation = Quaternion.Euler(_verticalRotation, 0f, 0f);
         }
 
         private void HandleHiddenRotation()

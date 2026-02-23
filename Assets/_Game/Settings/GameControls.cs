@@ -190,6 +190,15 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""ValveScroll"",
+                    ""type"": ""Value"",
+                    ""id"": ""d4e5f6a7-b8c9-0123-4567-89abcdef0123"",
+                    ""expectedControlType"": ""Axis"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
                 }
             ],
             ""bindings"": [
@@ -621,6 +630,50 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""action"": ""HoldBreath"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1b2c3d4-0001-0002-0003-000000000001"",
+                    ""path"": ""<Mouse>/scroll/y"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""ValveScroll"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""Triggers"",
+                    ""id"": ""a1b2c3d4-0001-0002-0003-000000000002"",
+                    ""path"": ""1DAxis"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""ValveScroll"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""negative"",
+                    ""id"": ""a1b2c3d4-0001-0002-0003-000000000003"",
+                    ""path"": ""<Gamepad>/leftTrigger"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""ValveScroll"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""positive"",
+                    ""id"": ""a1b2c3d4-0001-0002-0003-000000000004"",
+                    ""path"": ""<Gamepad>/rightTrigger"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Gamepad"",
+                    ""action"": ""ValveScroll"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
                 }
             ]
         },
@@ -1217,6 +1270,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         m_Player_Sprint = m_Player.FindAction("Sprint", throwIfNotFound: true);
         m_Player_MissionToggle = m_Player.FindAction("MissionToggle", throwIfNotFound: true);
         m_Player_HoldBreath = m_Player.FindAction("HoldBreath", throwIfNotFound: true);
+        m_Player_ValveScroll = m_Player.FindAction("ValveScroll", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1321,6 +1375,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Sprint;
     private readonly InputAction m_Player_MissionToggle;
     private readonly InputAction m_Player_HoldBreath;
+    private readonly InputAction m_Player_ValveScroll;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -1376,6 +1431,10 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Player/HoldBreath".
         /// </summary>
         public InputAction @HoldBreath => m_Wrapper.m_Player_HoldBreath;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/ValveScroll".
+        /// </summary>
+        public InputAction @ValveScroll => m_Wrapper.m_Player_ValveScroll;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1435,6 +1494,9 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
             @HoldBreath.started += instance.OnHoldBreath;
             @HoldBreath.performed += instance.OnHoldBreath;
             @HoldBreath.canceled += instance.OnHoldBreath;
+            @ValveScroll.started += instance.OnValveScroll;
+            @ValveScroll.performed += instance.OnValveScroll;
+            @ValveScroll.canceled += instance.OnValveScroll;
         }
 
         /// <summary>
@@ -1479,6 +1541,9 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
             @HoldBreath.started -= instance.OnHoldBreath;
             @HoldBreath.performed -= instance.OnHoldBreath;
             @HoldBreath.canceled -= instance.OnHoldBreath;
+            @ValveScroll.started -= instance.OnValveScroll;
+            @ValveScroll.performed -= instance.OnValveScroll;
+            @ValveScroll.canceled -= instance.OnValveScroll;
         }
 
         /// <summary>
@@ -1856,6 +1921,13 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnHoldBreath(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "ValveScroll" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnValveScroll(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

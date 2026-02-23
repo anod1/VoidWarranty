@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 using FishNet.Object;
@@ -121,6 +122,48 @@ namespace SubSurface.AI
         private float _searchCooldownTimer;
 
         // =====================================================================
+        // Detection — Threat System (coop multi-joueurs)
+        // =====================================================================
+        //
+        // Architecture simplifiée et fiable :
+        //   - Vision  : détection binaire dans le cône, LOS raycast.
+        //               → Chase immédiat si vu. Persistance via _loseSightTimer.
+        //   - Ouïe    : jauge de suspicion [0..1] qui monte avec le bruit.
+        //               → Investigate quand pleine. Pas de Chase direct.
+        //   - Proximité : Chase immédiat si dans _proximityRadius.
+        //   - Coop    : _threatScores par joueur pour choisir la CIBLE,
+        //               mais la DÉCISION d'état (Patrol/Investigate/Chase)
+        //               est basée sur des règles claires, pas le score brut.
+
+        [Header("Detection — Suspicion (Patrol→Investigate)")]
+        [Tooltip("Vitesse montée suspicion quand bruit détecté (par seconde)")]
+        [SerializeField] private float _suspicionBuildRate = 0.35f;
+        [Tooltip("Vitesse décroissance suspicion quand silence (par seconde)")]
+        [SerializeField] private float _suspicionDecayRate = 0.1f;
+
+        [Header("Detection — Coop Threat (sélection cible)")]
+        [Tooltip("Marge pour changer de cible en Chase — évite le flip-flop")]
+        [SerializeField] private float _threatSwitchMargin = 20f;
+        [Tooltip("Multiplicateur de decay par frame pour les scores non-détectés (ex: 0.95 = -5%/frame)")]
+        [SerializeField] private float _threatDecayRate = 0.95f;
+
+        // Suspicion globale [0..1] (Patrol uniquement, déclenche Investigate)
+        private float _suspicionLevel;
+        private Transform _suspicionSource; // Joueur le plus bruyant actuellement
+
+        /// <summary>Score de menace par joueur. Server-side uniquement.</summary>
+        private readonly Dictionary<NetworkObject, float> _threatScores = new();
+
+        /// <summary>Dernière position vue/entendue par joueur.</summary>
+        private readonly Dictionary<NetworkObject, Vector3> _lastSeenPositions = new();
+
+        /// <summary>Cache PlayerMovement par NetworkObject.</summary>
+        private readonly Dictionary<NetworkObject, PlayerMovement> _playerMovementCache = new();
+
+        /// <summary>NetworkObject de la cible actuelle.</summary>
+        private NetworkObject _chaseTargetNob;
+
+        // =====================================================================
         // Events
         // =====================================================================
 
@@ -158,6 +201,9 @@ namespace SubSurface.AI
                     _lastSearchedSpot = null;
             }
 
+            // Threat score : mise à jour avant le state switch
+            UpdateThreatScores();
+
             switch (_currentState)
             {
                 case DrifterState.Patrol:
@@ -189,6 +235,7 @@ namespace SubSurface.AI
                 case DrifterState.Patrol:
                     _agent.speed = _patrolSpeed;
                     _chaseTarget = null;
+                    _chaseTargetNob = null;
                     _isSearchingHidingSpot = false;
                     _searchedHidingSpot = null;
                     _agent.isStopped = false;
@@ -238,40 +285,55 @@ namespace SubSurface.AI
 
         private void UpdatePatrol()
         {
-            // Proximité → Chase immédiat (le Drifter "sent" le joueur)
-            Transform close = SenseProximity();
-            if (close != null)
+            // Priorité 1 — Vision directe → Chase immédiat (pas de jauge)
+            Transform seen = DetectVisiblePlayer();
+            if (seen != null)
             {
-                _chaseTarget = close;
-                SetState(DrifterState.Chase);
+                _suspicionLevel = 0f;
+                StartChaseOn(seen);
                 return;
             }
 
-            // Vision → Chase
-            Transform detected = DetectPlayer();
-            if (detected != null)
+            // Priorité 2 — Proximité → Chase immédiat
+            Transform sensed = DetectProximityPlayer();
+            if (sensed != null)
             {
-                _chaseTarget = detected;
-                SetState(DrifterState.Chase);
+                _suspicionLevel = 0f;
+                StartChaseOn(sensed);
                 return;
             }
 
-            // Audition → Investigate
-            Transform heard = HearPlayer();
+            // Priorité 3 — Ouïe → jauge de suspicion (Alien Isolation style)
+            // La jauge monte proportionnellement au bruit, décroît dans le silence.
+            // Quand elle est pleine → Investigate vers la dernière position sonore.
+            Transform heard = DetectAudioPlayer();
             if (heard != null)
             {
+                PlayerMovement mov = heard.GetComponent<PlayerMovement>();
+                float noiseFactor = mov != null ? mov.NoiseLevel : 1f;
+                _suspicionLevel += _suspicionBuildRate * noiseFactor * Time.deltaTime;
+                _suspicionLevel = Mathf.Clamp01(_suspicionLevel);
+                _suspicionSource = heard;
                 _lastKnownPosition = heard.position;
-                SetState(DrifterState.Investigate);
-                return;
+
+                if (_suspicionLevel >= 1f)
+                {
+                    _suspicionLevel = 0f;
+                    _suspicionSource = null;
+                    SetState(DrifterState.Investigate);
+                    return;
+                }
             }
-
-            // Move to waypoints
-            if (_patrolWaypoints == null || _patrolWaypoints.Length == 0) return;
-
-            if (!_agent.pathPending && _agent.remainingDistance <= _waypointReachThreshold)
+            else
             {
-                GoToNextWaypoint();
+                _suspicionLevel -= _suspicionDecayRate * Time.deltaTime;
+                _suspicionLevel = Mathf.Clamp01(_suspicionLevel);
             }
+
+            // Patrouille normale
+            if (_patrolWaypoints == null || _patrolWaypoints.Length == 0) return;
+            if (!_agent.pathPending && _agent.remainingDistance <= _waypointReachThreshold)
+                GoToNextWaypoint();
         }
 
         private void GoToNextWaypoint()
@@ -295,26 +357,24 @@ namespace SubSurface.AI
                 return;
             }
 
-            // Proximité → Chase immédiat
-            Transform close = SenseProximity();
-            if (close != null)
+            // Priorité 1 — Vision directe → Chase immédiat
+            Transform seen = DetectVisiblePlayer();
+            if (seen != null)
             {
-                _chaseTarget = close;
-                SetState(DrifterState.Chase);
+                StartChaseOn(seen);
                 return;
             }
 
-            // Vision → Chase
-            Transform detected = DetectPlayer();
-            if (detected != null)
+            // Priorité 2 — Proximité → Chase immédiat
+            Transform sensed = DetectProximityPlayer();
+            if (sensed != null)
             {
-                _chaseTarget = detected;
-                SetState(DrifterState.Chase);
+                StartChaseOn(sensed);
                 return;
             }
 
-            // Audition → redirige l'investigation
-            Transform heard = HearPlayer();
+            // Priorité 3 — Ouïe → mise à jour destination + reset timer
+            Transform heard = DetectAudioPlayer();
             if (heard != null)
             {
                 _lastKnownPosition = heard.position;
@@ -330,7 +390,7 @@ namespace SubSurface.AI
                 return;
             }
 
-            // Reached investigation point — search for occupied hiding spots nearby
+            // Arrivée au point → fouille des cachettes
             if (!_agent.pathPending && _agent.remainingDistance <= _waypointReachThreshold)
             {
                 HidingSpot spot = FindOccupiedHidingSpotNearby();
@@ -349,7 +409,7 @@ namespace SubSurface.AI
                 }
                 else
                 {
-                    _investigateTimer -= Time.deltaTime * 3f; // Drain faster when at position
+                    _investigateTimer -= Time.deltaTime * 3f;
                 }
             }
         }
@@ -360,102 +420,303 @@ namespace SubSurface.AI
 
         private void UpdateChase()
         {
-            if (_chaseTarget == null)
+            // Cible nulle → on tente de récupérer la plus menaçante ou on abandonne
+            if (_chaseTarget == null || _chaseTargetNob == null)
             {
+                Transform fallback = DetectVisiblePlayer() ?? DetectProximityPlayer();
+                if (fallback != null) { StartChaseOn(fallback); return; }
+                _lastKnownPosition = _lastSeenPosition;
                 SetState(DrifterState.Investigate);
                 return;
             }
 
-            // Si le joueur est cache, on perd immediatement la cible
-            // mais on utilise la derniere position VUE, pas la position actuelle
+            // Joueur entré dans un hiding spot → perd la cible, go Investigate
             if (_chaseTarget.gameObject.layer == HiddenLayer)
             {
-                _lastKnownPosition = _lastSeenPosition;
-                _chaseTarget = null;
+                _lastKnownPosition = _lastSeenPositions.TryGetValue(_chaseTargetNob, out Vector3 lsp)
+                    ? lsp : _lastSeenPosition;
+                ClearChaseTarget();
                 SetState(DrifterState.Investigate);
                 return;
             }
 
-            // Can we still see the target?
+            // ---- Coop : switch de cible si un autre joueur est bien plus menaçant ----
+            // On utilise _threatScores pour comparer, mais la décision de Chase
+            // reste basée sur vision/proximité, pas sur le score brut.
+            // Le switch ne se fait QUE si on voit ou sent directement l'autre joueur.
+            Transform betterVisible = DetectVisiblePlayer();
+            if (betterVisible != null && betterVisible != _chaseTarget)
+            {
+                NetworkObject betterNob = betterVisible.GetComponent<NetworkObject>();
+                if (betterNob != null && betterNob != _chaseTargetNob)
+                {
+                    float currentScore = _threatScores.TryGetValue(_chaseTargetNob, out float cs) ? cs : 0f;
+                    float betterScore  = _threatScores.TryGetValue(betterNob, out float bs) ? bs : 0f;
+                    if (betterScore > currentScore + _threatSwitchMargin)
+                    {
+                        _lastSeenPositions[_chaseTargetNob] = _lastSeenPosition;
+                        StartChaseOn(betterVisible);
+                        return;
+                    }
+                }
+            }
+
+            // ---- Vision directe sur la cible ----
             if (CanSeeTarget(_chaseTarget))
             {
                 _loseSightTimer = _loseSightDuration;
                 _lastSeenPosition = _chaseTarget.position;
+                _lastSeenPositions[_chaseTargetNob] = _chaseTarget.position;
                 _agent.SetDestination(_chaseTarget.position);
+                return;
             }
-            else
+
+            // ---- Proximité : maintient la chase même sans LOS ----
+            float distToCurrent = Vector3.Distance(transform.position, _chaseTarget.position);
+            if (distToCurrent <= _proximityRadius)
             {
-                // Proximité maintient la chase même sans vision
-                Transform close = SenseProximity();
-                if (close != null && close == _chaseTarget)
-                {
-                    _loseSightTimer = _loseSightDuration;
-                    _lastSeenPosition = _chaseTarget.position;
-                    _agent.SetDestination(_chaseTarget.position);
-                    return;
-                }
+                _loseSightTimer = _loseSightDuration;
+                _lastSeenPosition = _chaseTarget.position;
+                _lastSeenPositions[_chaseTargetNob] = _chaseTarget.position;
+                _agent.SetDestination(_chaseTarget.position);
+                return;
+            }
 
-                _loseSightTimer -= Time.deltaTime;
+            // ---- Perte de vue : timer + redirect audio ----
+            _loseSightTimer -= Time.deltaTime;
+            _agent.SetDestination(_lastSeenPosition);
 
-                // Aller vers la derniere position VUE (pas la live position)
-                _agent.SetDestination(_lastSeenPosition);
+            // L'ouïe prolonge la chase si le joueur fait encore du bruit
+            Transform heard = DetectAudioPlayer();
+            if (heard != null && heard == _chaseTarget)
+            {
+                _loseSightTimer = Mathf.Max(_loseSightTimer, _loseSightDuration * 0.5f);
+                _lastSeenPosition = heard.position;
+            }
 
-                // Audition pendant la perte de vue : permet de rediriger
-                Transform heard = HearPlayer();
-                if (heard != null)
-                {
-                    _lastSeenPosition = heard.position;
-                    _loseSightTimer = _loseSightDuration * 0.5f;
-                }
-
-                if (_loseSightTimer <= 0f)
-                {
-                    _lastKnownPosition = _lastSeenPosition;
-                    _chaseTarget = null;
-                    SetState(DrifterState.Investigate);
-                }
+            if (_loseSightTimer <= 0f)
+            {
+                _lastKnownPosition = _lastSeenPosition;
+                ClearChaseTarget();
+                SetState(DrifterState.Investigate);
             }
         }
 
+        /// <summary>Démarre une chase sur un Transform — résout le NetworkObject associé.</summary>
+        private void StartChaseOn(Transform target)
+        {
+            _chaseTarget = target;
+            _chaseTargetNob = target.GetComponent<NetworkObject>();
+            _lastSeenPosition = target.position;
+            if (_chaseTargetNob != null)
+                _lastSeenPositions[_chaseTargetNob] = target.position;
+            SetState(DrifterState.Chase);
+        }
+
+        private void ClearChaseTarget()
+        {
+            _chaseTarget = null;
+            _chaseTargetNob = null;
+        }
+
         // =====================================================================
-        // Detection
+        // Threat Score — Core Methods
         // =====================================================================
 
         /// <summary>
-        /// Detection visuelle : cone de vision + raycast line-of-sight.
-        /// Ignore les joueurs sur le layer Hidden (caches).
+        /// Met à jour le threat score de chaque joueur détecté.
+        /// Un seul OverlapSphere (hearingRadiusMax = le plus grand rayon) :
+        /// on check vision, audition et proximité dans le même pass.
+        /// Appelée chaque frame côté serveur, avant le state switch.
         /// </summary>
-        private Transform DetectPlayer()
+        private void UpdateThreatScores()
         {
-            Collider[] hits = Physics.OverlapSphere(transform.position, _visionRange, _playerLayer);
+            Collider[] hits = Physics.OverlapSphere(transform.position, _hearingRadiusMax, _playerLayer);
+
+            // Track qui a été détecté ce frame (pour le decay des autres)
+            HashSet<NetworkObject> sensedThisFrame = new();
 
             foreach (var hit in hits)
             {
                 if (hit.gameObject.layer == HiddenLayer) continue;
 
+                NetworkObject nob = hit.GetComponent<NetworkObject>();
+                if (nob == null) continue;
+
+                // Cache PlayerMovement (évite GetComponent chaque frame)
+                if (!_playerMovementCache.TryGetValue(nob, out PlayerMovement movement))
+                {
+                    movement = hit.GetComponent<PlayerMovement>();
+                    if (movement == null) continue;
+                    _playerMovementCache[nob] = movement;
+                }
+
+                if (!_threatScores.ContainsKey(nob))
+                    _threatScores[nob] = 0f;
+
+                float addedThreat = 0f;
                 Transform target = hit.transform;
-                Vector3 dirToTarget = (target.position - transform.position).normalized;
+                float dist = Vector3.Distance(transform.position, target.position);
 
-                float angle = Vector3.Angle(transform.forward, dirToTarget);
-                if (angle > _visionAngle * 0.5f) continue;
+                // --- Vision check ---
+                if (dist <= _visionRange)
+                {
+                    Vector3 dirToTarget = (target.position - transform.position).normalized;
+                    float angle = Vector3.Angle(transform.forward, dirToTarget);
+                    if (angle <= _visionAngle * 0.5f && CanSeeTarget(target))
+                    {
+                        addedThreat += 10f;
+                        _lastSeenPositions[nob] = target.position;
+                    }
+                }
 
-                if (CanSeeTarget(target))
-                    return target;
+                // --- Hearing check ---
+                float noise = movement.NoiseLevel;
+                if (noise >= _hearingNoiseThreshold)
+                {
+                    float effectiveRadius = _hearingRadiusMax * noise;
+                    if (dist <= effectiveRadius)
+                    {
+                        addedThreat += (noise * 5f) / Mathf.Max(dist, 0.1f);
+                        // Audition met à jour la position (toujours, le son donne une position)
+                        _lastSeenPositions[nob] = target.position;
+                    }
+                }
+
+                // --- Proximity check ---
+                if (dist <= _proximityRadius)
+                {
+                    addedThreat += 15f;
+                    _lastSeenPositions[nob] = target.position;
+                }
+
+                if (addedThreat > 0f)
+                {
+                    _threatScores[nob] += addedThreat;
+                    sensedThisFrame.Add(nob);
+                }
             }
 
-            return null;
+            // Decay des joueurs non-détectés ce frame.
+            // On collecte les updates AVANT de modifier le dictionnaire
+            // pour éviter l'InvalidOperationException (collection modified during enumeration).
+            List<NetworkObject> toRemove = null;
+            List<(NetworkObject nob, float value)> toUpdate = null;
+
+            foreach (var kvp in _threatScores)
+            {
+                if (sensedThisFrame.Contains(kvp.Key)) continue;
+
+                float decayed = kvp.Value * _threatDecayRate;
+                if (decayed < 0.1f)
+                {
+                    toRemove ??= new List<NetworkObject>();
+                    toRemove.Add(kvp.Key);
+                }
+                else
+                {
+                    toUpdate ??= new List<(NetworkObject, float)>();
+                    toUpdate.Add((kvp.Key, decayed));
+                }
+            }
+
+            // Appliquer les updates APRÈS l'itération — jamais modifier un dict pendant foreach
+            if (toUpdate != null)
+                foreach (var (nob, val) in toUpdate)
+                    _threatScores[nob] = val;
+
+            if (toRemove != null)
+                foreach (var nob in toRemove)
+                {
+                    _threatScores.Remove(nob);
+                    _playerMovementCache.Remove(nob);
+                    // On garde _lastSeenPositions pour investigate
+                }
+
+            CleanupDestroyedPlayers();
         }
 
         /// <summary>
-        /// Detection sonore basee sur le NoiseLevel du joueur.
-        /// Le rayon effectif = _hearingRadiusMax * noiseLevel.
-        /// Sprint = entendu de loin, crouch = presque inaudible, immobile = silence.
-        /// Les joueurs caches ne sont PAS detectes (sauf futur systeme talkie-walkie).
+        /// Purge les NetworkObject détruits/déconnectés de tous les dictionnaires.
         /// </summary>
-        private Transform HearPlayer()
+        private void CleanupDestroyedPlayers()
+        {
+            // Collecte dans une liste séparée — ne jamais modifier Keys pendant l'itération
+            List<NetworkObject> dead = null;
+            foreach (var nob in _threatScores.Keys)
+            {
+                if (nob == null || nob.gameObject == null)
+                {
+                    dead ??= new List<NetworkObject>();
+                    dead.Add(nob);
+                }
+            }
+            if (dead == null) return;
+
+            foreach (var nob in dead)
+            {
+                _threatScores.Remove(nob);
+                _lastSeenPositions.Remove(nob);
+                _playerMovementCache.Remove(nob);
+                if (_chaseTargetNob == nob)
+                {
+                    _chaseTargetNob = null;
+                    _chaseTarget = null;
+                }
+            }
+        }
+
+
+        // =====================================================================
+        // Detection — méthodes propres utilisées par la state machine
+        // =====================================================================
+
+        /// <summary>
+        /// Vision : cône + LOS raycast. Retourne le joueur le plus proche dans le cône.
+        /// Joueurs accroupis : cône réduit de 50%.
+        /// Ignore le layer Hidden.
+        /// </summary>
+        private Transform DetectVisiblePlayer()
+        {
+            Collider[] hits = Physics.OverlapSphere(transform.position, _visionRange, _playerLayer);
+            Transform best = null;
+            float bestDist = float.MaxValue;
+
+            foreach (var hit in hits)
+            {
+                if (hit.gameObject.layer == HiddenLayer) continue;
+
+                Transform t = hit.transform;
+                Vector3 dir = (t.position - transform.position).normalized;
+                float dist = Vector3.Distance(transform.position, t.position);
+
+                // Cône réduit de 50% si le joueur est en crouch-walk
+                float effectiveAngle = _visionAngle;
+                PlayerMovement mov = hit.GetComponent<PlayerMovement>();
+                if (mov != null && mov.NoiseLevel > 0f && mov.NoiseLevel <= 0.3f)
+                    effectiveAngle *= 0.5f;
+
+                if (Vector3.Angle(transform.forward, dir) > effectiveAngle * 0.5f) continue;
+                if (!CanSeeTarget(t)) continue;
+
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    best = t;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>
+        /// Ouïe : retourne le joueur le plus bruyant dans le rayon effectif.
+        /// Rayon effectif = hearingRadiusMax * NoiseLevel du joueur.
+        /// Ignore le layer Hidden.
+        /// </summary>
+        private Transform DetectAudioPlayer()
         {
             Collider[] hits = Physics.OverlapSphere(transform.position, _hearingRadiusMax, _playerLayer);
-
             Transform loudest = null;
             float loudestScore = 0f;
 
@@ -463,19 +724,15 @@ namespace SubSurface.AI
             {
                 if (hit.gameObject.layer == HiddenLayer) continue;
 
-                PlayerMovement movement = hit.GetComponent<PlayerMovement>();
-                if (movement == null) continue;
+                PlayerMovement mov = hit.GetComponent<PlayerMovement>();
+                if (mov == null) continue;
 
-                float noise = movement.NoiseLevel;
+                float noise = mov.NoiseLevel;
                 if (noise < _hearingNoiseThreshold) continue;
 
                 float dist = Vector3.Distance(transform.position, hit.transform.position);
-                float effectiveRadius = _hearingRadiusMax * noise;
+                if (dist > _hearingRadiusMax * noise) continue;
 
-                // Hors du rayon effectif pour ce niveau de bruit
-                if (dist > effectiveRadius) continue;
-
-                // Score : plus bruyant et plus proche = prioritaire
                 float score = noise / Mathf.Max(dist, 0.1f);
                 if (score > loudestScore)
                 {
@@ -488,21 +745,24 @@ namespace SubSurface.AI
         }
 
         /// <summary>
-        /// Detection de proximite : omnidirectionnel, courte portee.
-        /// Le Drifter "sent" le joueur meme sans le voir ni l'entendre.
-        /// Ignore les joueurs caches dans un hiding spot (layer Hidden).
+        /// Proximité omnidirectionnelle : le Drifter "sent" le joueur.
+        /// Chase immédiat, pas de jauge. Retourne le joueur le plus proche.
+        /// Ignore le layer Hidden.
         /// </summary>
-        private Transform SenseProximity()
+        private Transform DetectProximityPlayer()
         {
             Collider[] hits = Physics.OverlapSphere(transform.position, _proximityRadius, _playerLayer);
+            Transform closest = null;
+            float closestDist = float.MaxValue;
 
             foreach (var hit in hits)
             {
                 if (hit.gameObject.layer == HiddenLayer) continue;
-                return hit.transform;
+                float d = Vector3.Distance(transform.position, hit.transform.position);
+                if (d < closestDist) { closestDist = d; closest = hit.transform; }
             }
 
-            return null;
+            return closest;
         }
 
         private bool CanSeeTarget(Transform target)
@@ -640,8 +900,18 @@ namespace SubSurface.AI
             // Notifier le client pour l'écran noir
             ObserversNotifyPlayerKilled(player);
 
+            // Nettoyer le joueur tué des dictionnaires de threat
+            NetworkObject nob = player.GetComponent<NetworkObject>();
+            if (nob != null)
+            {
+                _threatScores.Remove(nob);
+                _lastSeenPositions.Remove(nob);
+                _playerMovementCache.Remove(nob);
+            }
+
             // Reset to patrol
             _chaseTarget = null;
+            _chaseTargetNob = null;
             SetState(DrifterState.Patrol);
         }
 
@@ -688,6 +958,13 @@ namespace SubSurface.AI
         [Server]
         public void ForceChase(Transform target)
         {
+            NetworkObject nob = target.GetComponent<NetworkObject>();
+            if (nob != null)
+            {
+                _threatScores[nob] = 100f; // Force high threat
+                _chaseTargetNob = nob;
+                _lastSeenPositions[nob] = target.position;
+            }
             _chaseTarget = target;
             SetState(DrifterState.Chase);
         }
@@ -699,6 +976,27 @@ namespace SubSurface.AI
         public void ForcePatrol()
         {
             SetState(DrifterState.Patrol);
+        }
+
+        /// <summary>
+        /// Force le Drifter à investiguer une position dans le monde.
+        /// Utilisé pour les distractions (futur : jets d'objets).
+        /// Ne perturbe pas un Chase en cours (le chase est prioritaire).
+        /// </summary>
+        [Server]
+        public void InvestigatePosition(Vector3 position)
+        {
+            _lastKnownPosition = position;
+            if (_currentState == DrifterState.Patrol)
+            {
+                SetState(DrifterState.Investigate);
+            }
+            else if (_currentState == DrifterState.Investigate)
+            {
+                _investigateTimer = _investigateTimeout;
+                _agent.SetDestination(position);
+            }
+            // Si en Chase, on n'interrompt pas — le chase est prioritaire
         }
 
         // =====================================================================

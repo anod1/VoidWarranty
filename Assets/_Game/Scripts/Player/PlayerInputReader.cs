@@ -16,7 +16,10 @@ namespace VoidWarranty.Player
         public bool IsCrouching { get; private set; }
 
         public event System.Action OnInteractEvent;
+        public event System.Action OnInteractReleasedEvent;
         public event System.Action OnGrabToggleEvent;
+
+        public bool IsInteractHeld { get; private set; }
 
         public event System.Action OnJumpEvent;
         public event System.Action OnMissionToggleEvent;
@@ -69,7 +72,16 @@ namespace VoidWarranty.Player
 
         public void OnInteract(InputAction.CallbackContext context)
         {
-            if (context.started) OnInteractEvent?.Invoke();
+            if (context.started)
+            {
+                IsInteractHeld = true;
+                OnInteractEvent?.Invoke();
+            }
+            else if (context.canceled)
+            {
+                IsInteractHeld = false;
+                OnInteractReleasedEvent?.Invoke();
+            }
         }
 
         public void OnGrab(InputAction.CallbackContext context)
@@ -102,6 +114,54 @@ namespace VoidWarranty.Player
         {
             if (context.performed) IsHoldingBreath = true;
             else if (context.canceled) IsHoldingBreath = false;
+        }
+
+        // Valve scroll : molette souris (Y) ou gâchettes manette (RT/LT).
+        // IMPORTANT : La molette souris est discrète (±120 pendant 1 frame puis canceled = 0).
+        // On accumule les deltas dans _valveScrollAccumulator, et le consommateur (PurgeValve)
+        // appelle ConsumeValveScroll() pour lire + reset. Pour la manette (continu), on stocke
+        // la dernière valeur dans _valveScrollContinuous.
+        //
+        // ConsumeValveScroll() retourne :
+        //   - Souris : la somme accumulée des scroll ticks depuis le dernier consume
+        //   - Manette : la valeur continue actuelle (re-lue chaque frame par le consommateur)
+        private float _valveScrollAccumulator;
+        private float _valveScrollContinuous;
+
+        /// <summary>
+        /// Consomme l'input scroll de vanne. Appelé chaque frame par PurgeValve (ou futur puzzle).
+        /// Retourne la valeur discrète accumulée (souris) OU la valeur continue (manette).
+        /// Reset l'accumulateur souris après lecture.
+        /// </summary>
+        public float ConsumeValveScroll()
+        {
+            // S'il y a des scroll discrets accumulés (souris), les prioriser
+            if (Mathf.Abs(_valveScrollAccumulator) > 0.01f)
+            {
+                float val = _valveScrollAccumulator;
+                _valveScrollAccumulator = 0f;
+                return val;
+            }
+            // Sinon retourner la valeur continue (manette gâchettes)
+            return _valveScrollContinuous;
+        }
+
+        public void OnValveScroll(InputAction.CallbackContext context)
+        {
+            float raw = context.ReadValue<float>();
+
+            // Molette souris : valeurs discrètes ±120 → on accumule
+            // Manette : valeurs continues -1..+1 → on stocke
+            if (Mathf.Abs(raw) > 2f)
+            {
+                // Souris (discret ±120 par tick)
+                _valveScrollAccumulator += raw;
+            }
+            else
+            {
+                // Manette (continu -1..+1)
+                _valveScrollContinuous = raw;
+            }
         }
 
         // Non utilisés pour l'instant
