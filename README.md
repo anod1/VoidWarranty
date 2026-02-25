@@ -1,115 +1,172 @@
-# VoidWarranty - Technical Documentation
+# Sub-Surface 0
 
-**Jeu coopératif multijoueur de réparation construit avec Unity et FishNet**
+**Jeu d'horreur coopératif sous-marin construit avec Unity et FishNet**
 
-## Project Overview
+## Concept
 
-Jeu coopératif multijoueur se déroulant dans une petite ville américaine des années 90, ambiance Stranger Things.
-Des machines et systèmes sont infectés par une force surnaturelle — les joueurs incarnent des techniciens envoyés pour réparer ces "patients" et accomplir des contrats de réparation.
+Deux joueurs sont piégés dans un complexe sous-marin abandonné. Pas d'objectifs affichés, pas de marqueurs : le level design guide les joueurs à travers des couloirs séparés, des portes verrouillées et des puzzles coopératifs. Une créature (le Drifter) rôde dans les niveaux avancés.
 
-**Setting** : Terre, années 1990 — petite ville américaine, atmosphère rétro, phénomènes paranormaux.
+**Setting** : Fond de l'océan, station de recherche abandonnée, horreur lovecraftienne.
 
----
-
-## Scripts Structure
-
-### Core
-
-- **[IInteractable.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/IInteractable.cs)** — Interface pour objets interactifs
-- **[ItemData.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/ItemData.cs)** — ScriptableObject définition des items
-- **[GameManager.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/GameManager.cs)** — Registre de session et gestion globale
-- **[MissionManager.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/MissionManager.cs)** — Gestion des missions (extraction Tarkov-like)
-- **[MissionData.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/MissionData.cs)** — ScriptableObject définition des missions
-- **[LocalizationManager.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/LocalizationManager.cs)** — Singleton localisation
-- **[LocalizationTable.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/LocalizationTable.cs)** — Table de traduction CSV
-- **[RealisticHeadBob.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/RealisticHeadBob.cs)** — Effet caméra head bob réaliste
-
-### Interaction
-
-- **[GrabbableObject.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/GrabbableObject.cs)** — Base pour objets ramassables
-- **[PatientObject.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/PatientObject.cs)** — Machine infectée à réparer (state machine 4 états)
-- **[RepairSocket.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/RepairSocket.cs)** — Socket installation/retrait pièces
-- **[Scanner.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/Scanner.cs)** — Radar + ciblage prioritaire
-- **[SupplyCrate.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/SupplyCrate.cs)** — Caisse de fournitures
-- **[TruckZone.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/TruckZone.cs)** — Zone d'extraction (camion)
-- **[TruckValidationButton.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/TruckValidationButton.cs)** — Bouton d'extraction du camion
-- **[ColorCube.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/ColorCube.cs)** — Debug/test
-
-### Player
-
-- **[PlayerCameraSetup.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Player/PlayerCameraSetup.cs)** — Attachement caméra joueur local
-- **[PlayerGrab.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Player/PlayerGrab.cs)** — Grab/Drop physique réseau
-- **[PlayerInputReader.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Player/PlayerInputReader.cs)** — Input System polling
-- **[PlayerInteraction.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Player/PlayerInteraction.cs)** — Raycast interaction (touche E)
-- **[PlayerMovement.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Player/PlayerMovement.cs)** — Déplacement, sprint, crouch, gravité
-
-### UI
-
-- **[InteractionHUD.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/UI/InteractionHUD.cs)** — Prompt d'interaction + crosshair
-- **[MissionHUD.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/UI/MissionHUD.cs)** — Panel d'objectifs de mission (Tab)
-- **[NotificationHUD.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/UI/NotificationHUD.cs)** — Notifications résultats de mission
-- **[ButtonHoverEffect.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/UI/Menu/ButtonHoverEffect.cs)** — Effet hover boutons menu
-
----
-
-## Known Issues / Work In Progress
-
-### Fixed
-- [x] Character Controller center offset bug
-- [x] Crouch system collision detection
-- [x] PlayerInputReader singleton overwritten by non-owner spawns
-- [x] TruckZone despawn items prematurely (now validates on extract only)
-- [x] MissionHUD multiplayer sync
-
-### Current Work
-- [ ] Scanner target priority optimization (remplacer FindObjectsByType par liste statique)
-- [ ] Feedback UI persistant (remplacer Debug.Log par toast notifications)
-
-### Implemented (v0.6)
-- [x] GameManager (registre session)
-- [x] MissionManager (boucle Tarkov-like)
-- [x] MissionHUD (objectifs avec Tab toggle)
-- [x] NotificationHUD (résultats mission)
-- [x] TruckValidationButton (extraction manuelle)
-- [x] RealisticHeadBob (effet caméra)
-- [x] UI esthétique cassette années 90
-
-### Planned Features
-- [ ] Système économique (shop, achat/vente outils)
-- [ ] Multiples niveaux de zones d'intervention
-- [ ] Advanced toolbox mechanics
-- [ ] Système de propagation d'infection paranormale
+> Anciennement *VoidWarranty* (jeu de réparation coop années 90). Le projet a pivoté vers l'horreur sous-marine.
 
 ---
 
 ## Tech Stack
 
-- **Engine**: Unity 6000.3.6f1
-- **Networking**: FishNet
-- **Input**: New Input System
-- **Rendering**: URP
+| Composant | Version |
+|-----------|---------|
+| Unity | 6000.3.6f1 |
+| URP | 17.3.0 |
+| FishNet | v4 (source dans `Assets/FishNet/`) |
+| Input System | 1.18.0 |
+| ProBuilder | 6.0.9 |
+| AI Navigation | 2.0.9 |
 
 ---
 
-## Quick Links to Main Systems
+## Scripts
 
-- [PlayerMovement.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Player/PlayerMovement.cs)
-- [PlayerGrab.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Player/PlayerGrab.cs)
-- [GrabbableObject.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/GrabbableObject.cs)
-- [PatientObject.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/PatientObject.cs)
-- [Scanner.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Interaction/Scanner.cs)
-- [MissionManager.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/MissionManager.cs)
-- [GameManager.cs](https://raw.githubusercontent.com/anod1/VoidWarranty/main/Assets/_Game/Scripts/Core/GameManager.cs)
+### Core
+
+| Script | Description |
+|--------|-------------|
+| `IInteractable.cs` | Interface press E |
+| `IHoldInteractable.cs` | Interface hold E (OnHoldStart/Release, GetHoldDuration) |
+| `ItemData.cs` | ScriptableObject items |
+| `GameManager.cs` | Registre de session |
+| `MissionManager.cs` | Boucle mission (legacy, conservé) |
+| `MissionData.cs` | ScriptableObject missions (legacy) |
+| `LocalizationManager.cs` | Singleton localisation CSV (`LocalizationManager.Get("KEY")`) |
+| `LocalizationTable.cs` | Table de traduction FR/EN |
+| `RealisticHeadBob.cs` | Head bob caméra (delta only) |
+
+### Player
+
+| Script | Description |
+|--------|-------------|
+| `PlayerMovement.cs` | Déplacement, sprint, crouch, gravité, Freeze, ValveLook, NoiseOverride APIs |
+| `PlayerInteraction.cs` | Raycast interaction E + support IHoldInteractable (hold E) |
+| `PlayerInputReader.cs` | Input polling, IsInteractHeld, ValveScroll, singleton `LocalInstance` |
+| `PlayerInventory.cs` | Inventaire SyncList\<string\>, TAB toggle, HasItem/CmdAddItem/CmdRemoveItem |
+| `PlayerCameraSetup.cs` | Attachement caméra joueur local |
+| `PlayerGrab.cs` | Grab/Drop physique réseau (legacy) |
+| `PlayerFootsteps.cs` | Audio 3D footsteps |
+
+### Interaction
+
+| Script | Description |
+|--------|-------------|
+| `LevelDoor.cs` | Porte générique Locked/Closed/Open, lerp animation, SyncVar état |
+| `DoorButton.cs` | Bouton porte : Open/Close/Toggle, mode press ou hold E |
+| `DoorLockTrigger.cs` | Trigger server : ferme + verrouille une porte (usage unique) |
+| `ItemPickup.cs` | Ramassage générique E, ajoute item à l'inventaire, SyncVar \_pickedUp |
+| `BadgeReader.cs` | IHoldInteractable, vérifie HasItem, notifie SimultaneousBadge |
+| `SimultaneousBadge.cs` | 2 lecteurs simultanés requis pour ouvrir une porte |
+| `PupitreInteraction.cs` | Lean-in caméra pour moniteur de surveillance |
+| `GrabbableObject.cs` | Objets ramassables physiques (legacy) |
+| `PatientObject.cs` | Machine infectée à réparer (legacy) |
+| `RepairSocket.cs` | Socket installation pièces (legacy) |
+| `Scanner.cs` | Radar + ciblage (legacy) |
+| `SupplyCrate.cs` | Caisse de fournitures (legacy) |
+| `TruckZone.cs` | Zone d'extraction camion (legacy) |
+| `TruckValidationButton.cs` | Bouton extraction (legacy) |
+
+### Puzzle
+
+| Script | Description |
+|--------|-------------|
+| `PuzzleManager.cs` | Puzzle ballast : 3 chambres (R/V/B, total=8), BFS distance 3-4, cycle fixe R>V>B |
+| `ValveInteractable.cs` | IInteractable, E = 1 transfert atomique, cooldown 0.5s, rotation + audio |
+
+### Level
+
+| Script | Description |
+|--------|-------------|
+| `AnnexInteractable.cs` | Activation O2 ou Electricité en fin de niveau |
+| `AnnexActivation.cs` | SyncVar O2 + Elec, quand les 2 actifs : déverrouille l'ascenseur |
+| `ElevatorZone.cs` | Trigger : 2 joueurs + unlocked = OnLevelComplete |
+| `SurveillanceMonitor.cs` | Active Camera RenderTexture en Awake (visible par tous) |
+
+### AI
+
+| Script | Description |
+|--------|-------------|
+| `DrifterAI.cs` | IA créature : Patrol/Investigate/Chase/Search, threat scores coop par joueur, jauge suspicion auditive, switch de cible avec marge, InvestigatePosition API |
+
+### Gameplay
+
+| Script | Description |
+|--------|-------------|
+| `HidingSpot.cs` | Cachettes Alien Isolation style (layer Hidden) |
+
+### Environment
+
+| Script | Description |
+|--------|-------------|
+| `DepthZoneManager.cs` | Gestion post-processing par zone de profondeur |
+| `DepthZoneTrigger.cs` | Trigger transitions visuelles |
+
+### UI
+
+| Script | Description |
+|--------|-------------|
+| `InteractionHUD.cs` | Prompt texte + crosshair scale |
+| `InventoryUI.cs` | TAB toggle, blur Volume DoF, freeze mouvement, cursor unlock |
+| `PuzzleConsoleUI.cs` | Canvas World Space, 3 jauges fill + marqueurs cible |
+| `MissionHUD.cs` | Panel objectifs (legacy, retiré du HUD prefab) |
+| `NotificationHUD.cs` | Notifications résultats |
 
 ---
 
-## Setup Instructions
+## Design Philosophy
+
+- **Pas de système de rôles** : le level design contraint les joueurs (portes fermées, couloirs séparés)
+- **Pas d'objectifs affichés** : le joueur comprend par l'exploration
+- **Scripts génériques** réutilisables entre niveaux
+- **Inventaire simple** : SyncList\<string\> d'IDs
+- **Localisation** : toutes les strings user-facing via clés CSV (`Data/Languages/`)
+
+---
+
+## Conventions
+
+- **Namespaces** : `VoidWarranty.Core`, `.Player`, `.Interaction`, `.UI` + `SubSurface.Environment`, `.Gameplay`, `.AI`, `.Puzzle`, `.Level`, `.UI`
+- **Champs** : privés `_camelCase`, publics `PascalCase`
+- **Inspector** : `[Header()]` pour organiser
+- **SRP strict** : 1 script = 1 responsabilité
+- **Layers** : 6 = Interactable, 7 = Player, 2 = Ignore Raycast, 8 = Hidden
+- **GO structure** : parent vide (scripts + NetworkObject, Layer 6) > enfants (meshes + colliders, Layer 6)
+
+---
+
+## FishNet Patterns
+
+- Joueur local : `base.IsOwner`
+- SyncVar : `SyncVar<T>` struct + `.Value` (FishNet v4)
+- RPCs : `[ServerRpc]`, `[ObserversRpc]`, `[TargetRpc]`
+- Late-joiners : `[ObserversRpc(BufferLast = true)]`
+- Input global : `PlayerInputReader.LocalInstance`
+
+---
+
+## Level 1 Flow
+
+1. Porte commence `Closed` > joueur maintient DoorButton (hold E) > porte `Open`
+2. Joueur passe > DoorLockTrigger fire > porte `Close` puis `Lock`
+3. Joueurs séparés > puzzle ballast (3 vannes, cycle R>V>B)
+4. Badge readers simultanés > porte fin de zone
+5. Annexes O2 + Electricité > ascenseur déverrouillé > 2 joueurs dedans = level complete
+
+---
+
+## Setup
 
 1. Clone the repository
 2. Open with Unity 6000.3.6f1+
-3. FishNet will auto-import dependencies
-4. Open _Game/Scenes/MainScene
+3. FishNet auto-imports dependencies
+4. Open `_Game/Scenes/` and run
 
 ---
 
-**Last Updated**: 2026-02-16
+**Last Updated**: 2026-02-23

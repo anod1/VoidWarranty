@@ -145,6 +145,9 @@ namespace VoidWarranty.Player
         {
             if (!base.IsOwner) return;
 
+            // Guard : CC désactivé de l'extérieur (ex: ride ascenseur)
+            if (!_characterController.enabled) return;
+
             // Valve look : frozen movement MAIS mouselook limité (vanne analogique)
             // Testé AVANT _isFrozen pour que les deux ne se court-circuitent pas.
             if (_isInValveLook)

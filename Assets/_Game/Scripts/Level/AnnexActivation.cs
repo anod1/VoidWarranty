@@ -11,14 +11,14 @@ namespace SubSurface.Level
     /// SETUP ÉDITEUR :
     /// → GO "AnnexActivation" + NetworkObject + AnnexActivation.cs
     /// → 2 GO enfants AnnexInteractable (O2 + Électricité) : Collider Layer 6
-    /// → Inspector AnnexActivation : ref ElevatorZone
+    /// → Inspector AnnexActivation : ref ElevatorController
     /// → Inspector : AudioClip pour chaque activation (optionnel)
     /// → Inspector : Light refs pour feedback visuel (optionnel)
     /// </summary>
     public class AnnexActivation : NetworkBehaviour
     {
         [Header("References")]
-        [SerializeField] private ElevatorZone _elevatorZone;
+        [SerializeField] private ElevatorController _elevatorController;
 
         [Header("Feedback visuel (optionnel)")]
         [SerializeField] private Light _oxygenLight;
@@ -90,6 +90,7 @@ namespace SubSurface.Level
                     if (_electricityActive.Value) return;
                     _electricityActive.Value = true;
                     Debug.Log("[AnnexActivation] Système Électricité activé.");
+                    _elevatorController?.NotifyElectricityActive();
                     break;
                 default:
                     return;
@@ -100,8 +101,11 @@ namespace SubSurface.Level
             // Vérifier si les deux sont actifs
             if (_oxygenActive.Value && _electricityActive.Value)
             {
-                if (_elevatorZone != null)
-                    _elevatorZone.Unlock();
+                if (_elevatorController != null)
+                {
+                    _elevatorController.NotifyAllSystemsActive();
+                    _elevatorController.Unlock();
+                }
 
                 Debug.Log("[AnnexActivation] Les deux systèmes actifs → Ascenseur déverrouillé !");
             }
