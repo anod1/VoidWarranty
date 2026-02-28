@@ -12,7 +12,7 @@ namespace VoidWarranty.Interaction
     /// → Attacher sur le même GO que le script d'interaction (DoorButton, ElevatorCallButton, etc.)
     /// → Inspector : _buttonMesh = Transform du mesh enfant à animer
     /// → Inspector : _pressAxis = direction locale d'enfoncement (défaut -Z)
-    /// → Optionnel : _pressClip = AudioClip de click mécanique
+    /// L'audio est géré par le script d'interaction (DoorButton, etc.) — pas ici.
     /// </summary>
     public class ButtonAnimator : MonoBehaviour
     {
@@ -28,11 +28,6 @@ namespace VoidWarranty.Interaction
         [Tooltip("Durée du retour")]
         [SerializeField] private float _returnDuration = 0.15f;
 
-        [Header("Audio")]
-        [Tooltip("Son de press (optionnel)")]
-        [SerializeField] private AudioClip _pressClip;
-        [SerializeField] private AudioSource _audioSource;
-
         private Vector3 _originalLocalPos;
         private Coroutine _currentAnim;
         private bool _isPressed;
@@ -41,9 +36,6 @@ namespace VoidWarranty.Interaction
         {
             if (_buttonMesh != null)
                 _originalLocalPos = _buttonMesh.localPosition;
-
-            if (_audioSource == null)
-                _audioSource = GetComponentInChildren<AudioSource>();
         }
 
         /// <summary>Enfonce le bouton. En mode press, revient automatiquement.</summary>
@@ -56,9 +48,6 @@ namespace VoidWarranty.Interaction
 
             _isPressed = true;
             _currentAnim = StartCoroutine(AnimatePress());
-
-            if (_pressClip != null && _audioSource != null)
-                _audioSource.PlayOneShot(_pressClip);
         }
 
         /// <summary>Relâche le bouton (pour hold mode). Appeler quand le joueur relâche E.</summary>
@@ -82,9 +71,6 @@ namespace VoidWarranty.Interaction
                 StopCoroutine(_currentAnim);
 
             _currentAnim = StartCoroutine(AnimatePressAndReturn());
-
-            if (_pressClip != null && _audioSource != null)
-                _audioSource.PlayOneShot(_pressClip);
         }
 
         private IEnumerator AnimatePress()
