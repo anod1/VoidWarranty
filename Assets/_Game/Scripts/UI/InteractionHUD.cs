@@ -28,5 +28,17 @@ namespace VoidWarranty.UI
                 _crosshair.transform.localScale = isInteractable ? Vector3.one * 1.5f : Vector3.one;
             }
         }
+
+        /// <summary>
+        /// Cache ou affiche le crosshair + prompt (utilisé par InventoryUI).
+        /// </summary>
+        public void SetVisible(bool visible)
+        {
+            if (_crosshair != null)
+                _crosshair.SetActive(visible);
+
+            if (_promptText != null)
+                _promptText.gameObject.SetActive(visible);
+        }
     }
 }

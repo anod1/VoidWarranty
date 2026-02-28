@@ -5,24 +5,24 @@ namespace VoidWarranty.Player
 {
     public class PlayerInputReader : MonoBehaviour, GameControls.IPlayerActions
     {
-        // Singleton pour le PlayerInputReader LOCAL (celui du joueur possédé)
         public static PlayerInputReader LocalInstance { get; private set; }
 
         public Vector2 MoveInput { get; private set; }
         public Vector2 LookInput { get; private set; }
         public bool IsSprinting { get; private set; }
-
-        // NOUVEAU : On ajoute l'�tat Accroupi
         public bool IsCrouching { get; private set; }
+        public bool IsInteractHeld { get; private set; }
+        public bool IsHoldingBreath { get; private set; }
 
         public event System.Action OnInteractEvent;
         public event System.Action OnInteractReleasedEvent;
         public event System.Action OnGrabToggleEvent;
-
-        public bool IsInteractHeld { get; private set; }
-
         public event System.Action OnJumpEvent;
-        public event System.Action OnMissionToggleEvent;
+
+        // Hotbar
+        public event System.Action<int> OnHotbarSlotEvent;
+        public event System.Action OnDropEvent;
+        public event System.Action<float> OnHotbarScrollEvent;
 
         private GameControls _controls;
 
@@ -46,13 +46,15 @@ namespace VoidWarranty.Player
 
         /// <summary>
         /// Appelé par PlayerMovement.OnStartClient() uniquement pour le joueur local (IsOwner).
-        /// Évite qu'un joueur non-owner écrase le singleton au spawn.
         /// </summary>
         public void SetAsLocalInstance()
         {
             LocalInstance = this;
-            Debug.Log("[PlayerInputReader] LocalInstance défini pour le joueur local.");
         }
+
+        // =================================================================
+        // Movement
+        // =================================================================
 
         public void OnMove(InputAction.CallbackContext context)
         {
@@ -69,6 +71,21 @@ namespace VoidWarranty.Player
             if (context.performed) IsSprinting = true;
             else if (context.canceled) IsSprinting = false;
         }
+
+        public void OnCrouch(InputAction.CallbackContext context)
+        {
+            if (context.performed) IsCrouching = true;
+            else if (context.canceled) IsCrouching = false;
+        }
+
+        public void OnJump(InputAction.CallbackContext context)
+        {
+            if (context.started) OnJumpEvent?.Invoke();
+        }
+
+        // =================================================================
+        // Interaction
+        // =================================================================
 
         public void OnInteract(InputAction.CallbackContext context)
         {
@@ -89,84 +106,55 @@ namespace VoidWarranty.Player
             if (context.started) OnGrabToggleEvent?.Invoke();
         }
 
-        // --- NOUVELLES IMPLEMENTATIONS ---
-
-        public void OnJump(InputAction.CallbackContext context)
-        {
-            if (context.started) OnJumpEvent?.Invoke();
-        }
-
-        public void OnCrouch(InputAction.CallbackContext context)
-        {
-            if (context.performed) IsCrouching = true;
-            else if (context.canceled) IsCrouching = false;
-        }
-
-        public void OnMissionToggle(InputAction.CallbackContext context)
-        {
-            if (context.started)
-                OnMissionToggleEvent?.Invoke();
-        }
-
-        public bool IsHoldingBreath { get; private set; }
-
         public void OnHoldBreath(InputAction.CallbackContext context)
         {
             if (context.performed) IsHoldingBreath = true;
             else if (context.canceled) IsHoldingBreath = false;
         }
 
-        // Valve scroll : molette souris (Y) ou gâchettes manette (RT/LT).
-        // IMPORTANT : La molette souris est discrète (±120 pendant 1 frame puis canceled = 0).
-        // On accumule les deltas dans _valveScrollAccumulator, et le consommateur (PurgeValve)
-        // appelle ConsumeValveScroll() pour lire + reset. Pour la manette (continu), on stocke
-        // la dernière valeur dans _valveScrollContinuous.
-        //
-        // ConsumeValveScroll() retourne :
-        //   - Souris : la somme accumulée des scroll ticks depuis le dernier consume
-        //   - Manette : la valeur continue actuelle (re-lue chaque frame par le consommateur)
-        private float _valveScrollAccumulator;
-        private float _valveScrollContinuous;
+        // =================================================================
+        // Hotbar
+        // =================================================================
 
-        /// <summary>
-        /// Consomme l'input scroll de vanne. Appelé chaque frame par PurgeValve (ou futur puzzle).
-        /// Retourne la valeur discrète accumulée (souris) OU la valeur continue (manette).
-        /// Reset l'accumulateur souris après lecture.
-        /// </summary>
-        public float ConsumeValveScroll()
+        public void OnHotbarSlot1(InputAction.CallbackContext context)
         {
-            // S'il y a des scroll discrets accumulés (souris), les prioriser
-            if (Mathf.Abs(_valveScrollAccumulator) > 0.01f)
-            {
-                float val = _valveScrollAccumulator;
-                _valveScrollAccumulator = 0f;
-                return val;
-            }
-            // Sinon retourner la valeur continue (manette gâchettes)
-            return _valveScrollContinuous;
+            if (context.started) OnHotbarSlotEvent?.Invoke(0);
         }
 
-        public void OnValveScroll(InputAction.CallbackContext context)
+        public void OnHotbarSlot2(InputAction.CallbackContext context)
+        {
+            if (context.started) OnHotbarSlotEvent?.Invoke(1);
+        }
+
+        public void OnHotbarSlot3(InputAction.CallbackContext context)
+        {
+            if (context.started) OnHotbarSlotEvent?.Invoke(2);
+        }
+
+        public void OnHotbarSlot4(InputAction.CallbackContext context)
+        {
+            if (context.started) OnHotbarSlotEvent?.Invoke(3);
+        }
+
+        public void OnHotbarScroll(InputAction.CallbackContext context)
         {
             float raw = context.ReadValue<float>();
-
-            // Molette souris : valeurs discrètes ±120 → on accumule
-            // Manette : valeurs continues -1..+1 → on stocke
-            if (Mathf.Abs(raw) > 2f)
-            {
-                // Souris (discret ±120 par tick)
-                _valveScrollAccumulator += raw;
-            }
-            else
-            {
-                // Manette (continu -1..+1)
-                _valveScrollContinuous = raw;
-            }
+            if (Mathf.Abs(raw) > 0.1f)
+                OnHotbarScrollEvent?.Invoke(raw);
         }
 
-        // Non utilisés pour l'instant
+        public void OnDrop(InputAction.CallbackContext context)
+        {
+            if (context.started) OnDropEvent?.Invoke();
+        }
+
+        // =================================================================
+        // Legacy (conservé pour MissionHUD — jamais fire)
+        // =================================================================
+
+        public event System.Action OnMissionToggleEvent;
+
+        public void OnMissionToggle(InputAction.CallbackContext context) { }
         public void OnAttack(InputAction.CallbackContext context) { }
-        public void OnPrevious(InputAction.CallbackContext context) { }
-        public void OnNext(InputAction.CallbackContext context) { }
     }
 }

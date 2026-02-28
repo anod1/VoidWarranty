@@ -147,7 +147,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""initialStateCheck"": false
                 },
                 {
-                    ""name"": ""Previous"",
+                    ""name"": ""HotbarSlot1"",
                     ""type"": ""Button"",
                     ""id"": ""2776c80d-3c14-4091-8c56-d04ced07a2b0"",
                     ""expectedControlType"": ""Button"",
@@ -156,9 +156,36 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""initialStateCheck"": false
                 },
                 {
-                    ""name"": ""Next"",
+                    ""name"": ""HotbarSlot2"",
                     ""type"": ""Button"",
                     ""id"": ""b7230bb6-fc9b-4f52-8b25-f5e19cb2c2ba"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""HotbarSlot3"",
+                    ""type"": ""Button"",
+                    ""id"": ""a1001001-0001-0001-0001-000000000001"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""HotbarSlot4"",
+                    ""type"": ""Button"",
+                    ""id"": ""a1001001-0001-0001-0001-000000000002"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Drop"",
+                    ""type"": ""Button"",
+                    ""id"": ""a1001001-0001-0001-0001-000000000003"",
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",
                     ""interactions"": """",
@@ -192,7 +219,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""initialStateCheck"": false
                 },
                 {
-                    ""name"": ""ValveScroll"",
+                    ""name"": ""HotbarScroll"",
                     ""type"": ""Value"",
                     ""id"": ""d4e5f6a7-b8c9-0123-4567-89abcdef0123"",
                     ""expectedControlType"": ""Axis"",
@@ -440,7 +467,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""Next"",
+                    ""action"": ""HotbarSlot2"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -451,7 +478,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
-                    ""action"": ""Next"",
+                    ""action"": ""HotbarSlot2"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -528,7 +555,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""Previous"",
+                    ""action"": ""HotbarSlot1"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -539,7 +566,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
-                    ""action"": ""Previous"",
+                    ""action"": ""HotbarSlot1"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -638,7 +665,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""ValveScroll"",
+                    ""action"": ""HotbarScroll"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -649,7 +676,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
-                    ""action"": ""ValveScroll"",
+                    ""action"": ""HotbarScroll"",
                     ""isComposite"": true,
                     ""isPartOfComposite"": false
                 },
@@ -660,7 +687,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
-                    ""action"": ""ValveScroll"",
+                    ""action"": ""HotbarScroll"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": true
                 },
@@ -671,9 +698,42 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
-                    ""action"": ""ValveScroll"",
+                    ""action"": ""HotbarScroll"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1001001-0002-0001-0001-000000000001"",
+                    ""path"": ""<Keyboard>/3"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""HotbarSlot3"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1001001-0002-0001-0001-000000000002"",
+                    ""path"": ""<Keyboard>/4"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""HotbarSlot4"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a1001001-0002-0001-0001-000000000003"",
+                    ""path"": ""<Keyboard>/g"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Drop"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         },
@@ -1265,12 +1325,15 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         m_Player_Interact = m_Player.FindAction("Interact", throwIfNotFound: true);
         m_Player_Crouch = m_Player.FindAction("Crouch", throwIfNotFound: true);
         m_Player_Jump = m_Player.FindAction("Jump", throwIfNotFound: true);
-        m_Player_Previous = m_Player.FindAction("Previous", throwIfNotFound: true);
-        m_Player_Next = m_Player.FindAction("Next", throwIfNotFound: true);
+        m_Player_HotbarSlot1 = m_Player.FindAction("HotbarSlot1", throwIfNotFound: true);
+        m_Player_HotbarSlot2 = m_Player.FindAction("HotbarSlot2", throwIfNotFound: true);
+        m_Player_HotbarSlot3 = m_Player.FindAction("HotbarSlot3", throwIfNotFound: true);
+        m_Player_HotbarSlot4 = m_Player.FindAction("HotbarSlot4", throwIfNotFound: true);
+        m_Player_Drop = m_Player.FindAction("Drop", throwIfNotFound: true);
         m_Player_Sprint = m_Player.FindAction("Sprint", throwIfNotFound: true);
         m_Player_MissionToggle = m_Player.FindAction("MissionToggle", throwIfNotFound: true);
         m_Player_HoldBreath = m_Player.FindAction("HoldBreath", throwIfNotFound: true);
-        m_Player_ValveScroll = m_Player.FindAction("ValveScroll", throwIfNotFound: true);
+        m_Player_HotbarScroll = m_Player.FindAction("HotbarScroll", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1370,12 +1433,15 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Interact;
     private readonly InputAction m_Player_Crouch;
     private readonly InputAction m_Player_Jump;
-    private readonly InputAction m_Player_Previous;
-    private readonly InputAction m_Player_Next;
+    private readonly InputAction m_Player_HotbarSlot1;
+    private readonly InputAction m_Player_HotbarSlot2;
+    private readonly InputAction m_Player_HotbarSlot3;
+    private readonly InputAction m_Player_HotbarSlot4;
+    private readonly InputAction m_Player_Drop;
     private readonly InputAction m_Player_Sprint;
     private readonly InputAction m_Player_MissionToggle;
     private readonly InputAction m_Player_HoldBreath;
-    private readonly InputAction m_Player_ValveScroll;
+    private readonly InputAction m_Player_HotbarScroll;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -1412,13 +1478,25 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @Jump => m_Wrapper.m_Player_Jump;
         /// <summary>
-        /// Provides access to the underlying input action "Player/Previous".
+        /// Provides access to the underlying input action "Player/HotbarSlot1".
         /// </summary>
-        public InputAction @Previous => m_Wrapper.m_Player_Previous;
+        public InputAction @HotbarSlot1 => m_Wrapper.m_Player_HotbarSlot1;
         /// <summary>
-        /// Provides access to the underlying input action "Player/Next".
+        /// Provides access to the underlying input action "Player/HotbarSlot2".
         /// </summary>
-        public InputAction @Next => m_Wrapper.m_Player_Next;
+        public InputAction @HotbarSlot2 => m_Wrapper.m_Player_HotbarSlot2;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/HotbarSlot3".
+        /// </summary>
+        public InputAction @HotbarSlot3 => m_Wrapper.m_Player_HotbarSlot3;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/HotbarSlot4".
+        /// </summary>
+        public InputAction @HotbarSlot4 => m_Wrapper.m_Player_HotbarSlot4;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/Drop".
+        /// </summary>
+        public InputAction @Drop => m_Wrapper.m_Player_Drop;
         /// <summary>
         /// Provides access to the underlying input action "Player/Sprint".
         /// </summary>
@@ -1432,9 +1510,9 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @HoldBreath => m_Wrapper.m_Player_HoldBreath;
         /// <summary>
-        /// Provides access to the underlying input action "Player/ValveScroll".
+        /// Provides access to the underlying input action "Player/HotbarScroll".
         /// </summary>
-        public InputAction @ValveScroll => m_Wrapper.m_Player_ValveScroll;
+        public InputAction @HotbarScroll => m_Wrapper.m_Player_HotbarScroll;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1479,12 +1557,21 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
             @Jump.started += instance.OnJump;
             @Jump.performed += instance.OnJump;
             @Jump.canceled += instance.OnJump;
-            @Previous.started += instance.OnPrevious;
-            @Previous.performed += instance.OnPrevious;
-            @Previous.canceled += instance.OnPrevious;
-            @Next.started += instance.OnNext;
-            @Next.performed += instance.OnNext;
-            @Next.canceled += instance.OnNext;
+            @HotbarSlot1.started += instance.OnHotbarSlot1;
+            @HotbarSlot1.performed += instance.OnHotbarSlot1;
+            @HotbarSlot1.canceled += instance.OnHotbarSlot1;
+            @HotbarSlot2.started += instance.OnHotbarSlot2;
+            @HotbarSlot2.performed += instance.OnHotbarSlot2;
+            @HotbarSlot2.canceled += instance.OnHotbarSlot2;
+            @HotbarSlot3.started += instance.OnHotbarSlot3;
+            @HotbarSlot3.performed += instance.OnHotbarSlot3;
+            @HotbarSlot3.canceled += instance.OnHotbarSlot3;
+            @HotbarSlot4.started += instance.OnHotbarSlot4;
+            @HotbarSlot4.performed += instance.OnHotbarSlot4;
+            @HotbarSlot4.canceled += instance.OnHotbarSlot4;
+            @Drop.started += instance.OnDrop;
+            @Drop.performed += instance.OnDrop;
+            @Drop.canceled += instance.OnDrop;
             @Sprint.started += instance.OnSprint;
             @Sprint.performed += instance.OnSprint;
             @Sprint.canceled += instance.OnSprint;
@@ -1494,9 +1581,9 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
             @HoldBreath.started += instance.OnHoldBreath;
             @HoldBreath.performed += instance.OnHoldBreath;
             @HoldBreath.canceled += instance.OnHoldBreath;
-            @ValveScroll.started += instance.OnValveScroll;
-            @ValveScroll.performed += instance.OnValveScroll;
-            @ValveScroll.canceled += instance.OnValveScroll;
+            @HotbarScroll.started += instance.OnHotbarScroll;
+            @HotbarScroll.performed += instance.OnHotbarScroll;
+            @HotbarScroll.canceled += instance.OnHotbarScroll;
         }
 
         /// <summary>
@@ -1526,12 +1613,21 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
             @Jump.started -= instance.OnJump;
             @Jump.performed -= instance.OnJump;
             @Jump.canceled -= instance.OnJump;
-            @Previous.started -= instance.OnPrevious;
-            @Previous.performed -= instance.OnPrevious;
-            @Previous.canceled -= instance.OnPrevious;
-            @Next.started -= instance.OnNext;
-            @Next.performed -= instance.OnNext;
-            @Next.canceled -= instance.OnNext;
+            @HotbarSlot1.started -= instance.OnHotbarSlot1;
+            @HotbarSlot1.performed -= instance.OnHotbarSlot1;
+            @HotbarSlot1.canceled -= instance.OnHotbarSlot1;
+            @HotbarSlot2.started -= instance.OnHotbarSlot2;
+            @HotbarSlot2.performed -= instance.OnHotbarSlot2;
+            @HotbarSlot2.canceled -= instance.OnHotbarSlot2;
+            @HotbarSlot3.started -= instance.OnHotbarSlot3;
+            @HotbarSlot3.performed -= instance.OnHotbarSlot3;
+            @HotbarSlot3.canceled -= instance.OnHotbarSlot3;
+            @HotbarSlot4.started -= instance.OnHotbarSlot4;
+            @HotbarSlot4.performed -= instance.OnHotbarSlot4;
+            @HotbarSlot4.canceled -= instance.OnHotbarSlot4;
+            @Drop.started -= instance.OnDrop;
+            @Drop.performed -= instance.OnDrop;
+            @Drop.canceled -= instance.OnDrop;
             @Sprint.started -= instance.OnSprint;
             @Sprint.performed -= instance.OnSprint;
             @Sprint.canceled -= instance.OnSprint;
@@ -1541,9 +1637,9 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
             @HoldBreath.started -= instance.OnHoldBreath;
             @HoldBreath.performed -= instance.OnHoldBreath;
             @HoldBreath.canceled -= instance.OnHoldBreath;
-            @ValveScroll.started -= instance.OnValveScroll;
-            @ValveScroll.performed -= instance.OnValveScroll;
-            @ValveScroll.canceled -= instance.OnValveScroll;
+            @HotbarScroll.started -= instance.OnHotbarScroll;
+            @HotbarScroll.performed -= instance.OnHotbarScroll;
+            @HotbarScroll.canceled -= instance.OnHotbarScroll;
         }
 
         /// <summary>
@@ -1887,19 +1983,40 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnJump(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "Previous" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// Method invoked when associated input action "HotbarSlot1" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnPrevious(InputAction.CallbackContext context);
+        void OnHotbarSlot1(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "Next" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// Method invoked when associated input action "HotbarSlot2" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnNext(InputAction.CallbackContext context);
+        void OnHotbarSlot2(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "HotbarSlot3" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnHotbarSlot3(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "HotbarSlot4" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnHotbarSlot4(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Drop" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnDrop(InputAction.CallbackContext context);
         /// <summary>
         /// Method invoked when associated input action "Sprint" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
@@ -1922,12 +2039,12 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnHoldBreath(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "ValveScroll" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// Method invoked when associated input action "HotbarScroll" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnValveScroll(InputAction.CallbackContext context);
+        void OnHotbarScroll(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

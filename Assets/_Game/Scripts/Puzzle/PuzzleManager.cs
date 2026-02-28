@@ -22,6 +22,12 @@ namespace SubSurface.Puzzle
     {
         public static PuzzleManager Instance { get; private set; }
 
+        [Header("Difficulty")]
+        [Tooltip("Distance BFS minimum (nombre de transferts pour résoudre)")]
+        [SerializeField] private int _minBfsDistance = 5;
+        [Tooltip("Distance BFS maximum")]
+        [SerializeField] private int _maxBfsDistance = 8;
+
         [Header("Events")]
         public UnityEvent OnPuzzleSolved;
         public UnityEvent OnFirstValveUsed;
@@ -134,11 +140,11 @@ namespace SubSurface.Puzzle
                 // 2. BFS depuis cet état
                 var distances = BFS(initial);
 
-                // 3. Filtrer distance 3 ou 4
+                // 3. Filtrer par distance configurable
                 var candidates = new List<int[]>();
                 foreach (var kvp in distances)
                 {
-                    if (kvp.Value == 3 || kvp.Value == 4)
+                    if (kvp.Value >= _minBfsDistance && kvp.Value <= _maxBfsDistance)
                         candidates.Add(DecodeState(kvp.Key));
                 }
 
@@ -160,10 +166,10 @@ namespace SubSurface.Puzzle
                 return;
             }
 
-            // Fallback : config fixe garantie soluble en 3 steps
+            // Fallback : config fixe soluble en 5 steps
             Debug.LogWarning("[PuzzleManager] BFS fallback : config fixe.");
-            SetPressures(new[] { 7, 0, 1 });
-            SetTargets(new[] { 5, 3, 0 });
+            SetPressures(new[] { 6, 2, 0 });
+            SetTargets(new[] { 1, 4, 3 });
             _isSolved.Value = false;
             _transferCount = 0;
         }
@@ -209,8 +215,8 @@ namespace SubSurface.Puzzle
                 int[] current = DecodeState(currentKey);
                 int dist = distances[currentKey];
 
-                // Pas besoin d'explorer au-delà de 4
-                if (dist >= 4) continue;
+                // Pas besoin d'explorer au-delà du max configuré
+                if (dist >= _maxBfsDistance) continue;
 
                 // 3 transferts possibles (cycle fixe)
                 for (int t = 0; t < 3; t++)

@@ -61,3 +61,11 @@ ACTION_START_DESCENT;Lancer la descente
 FEEDBACK_ELEVATOR_LOCKED;Systèmes hors ligne
 FEEDBACK_WAITING_PARTNER;En attente du partenaire
 LABEL_DEPTH;PROFONDEUR
+UI_INVENTORY;INVENTAIRE
+UI_EQUIP;Équiper
+UI_UNEQUIP;Déséquiper
+UI_DROP;Jeter
+ITEM_ORANGE_BADGE_DESC;Un badge d'accès orange usé. Sent l'eau de mer.
+FEEDBACK_INVENTORY_FULL;Inventaire plein
+INPUT_DROP;[G]
+ACTION_DROP_ITEM;Jeter

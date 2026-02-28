@@ -7,7 +7,7 @@ namespace VoidWarranty.Interaction
     /// <summary>
     /// Lecteur de badge individuel — composant enfant de SimultaneousBadge.
     /// IHoldInteractable : le joueur maintient E pour scanner son badge.
-    /// Vérifie que le joueur possède le badge orange dans son inventaire.
+    /// Vérifie que le joueur TIENT le badge en main (slot sélectionné).
     ///
     /// SETUP ÉDITEUR :
     /// → Attacher sur chaque GO lecteur enfant ("ReaderA", "ReaderB")
@@ -38,7 +38,7 @@ namespace VoidWarranty.Interaction
             PlayerInventory inventory = PlayerInventory.LocalInstance;
             if (inventory == null) return "";
 
-            if (!inventory.HasItem(_requiredItemId))
+            if (inventory.EquippedItemId != _requiredItemId)
                 return $"<size=80%><color=#666666>{LocalizationManager.Get("FEEDBACK_BADGE_NEEDED")}</color></size>";
 
             string hold = LocalizationManager.Get("INPUT_HOLD");
@@ -52,7 +52,7 @@ namespace VoidWarranty.Interaction
         public void OnHoldStart(GameObject interactor)
         {
             PlayerInventory inventory = interactor.GetComponent<PlayerInventory>();
-            if (inventory == null || !inventory.HasItem(_requiredItemId)) return;
+            if (inventory == null || inventory.EquippedItemId != _requiredItemId) return;
 
             _isHolding = true;
 

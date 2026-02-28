@@ -62,11 +62,36 @@ namespace VoidWarranty.Core
         public void Initialize()
         {
             _lookup = new Dictionary<string, string>();
-            foreach (var entry in _entries)
+
+            // D'abord charger les entries sérialisées (backup éditeur)
+            if (_entries != null)
             {
-                if (!_lookup.ContainsKey(entry.Key))
+                foreach (var entry in _entries)
                 {
-                    _lookup.Add(entry.Key, entry.Value);
+                    if (!_lookup.ContainsKey(entry.Key))
+                        _lookup.Add(entry.Key, entry.Value);
+                }
+            }
+
+            // Puis parser le CSV directement s'il est assigné (toujours à jour)
+            if (CsvFile != null)
+            {
+                string[] lines = CsvFile.text.Split('\n');
+                foreach (string line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    if (line.StartsWith("KEY;")) continue;
+
+                    string[] parts = line.Split(';');
+                    if (parts.Length >= 2)
+                    {
+                        string key = parts[0].Trim();
+                        string value = parts[1].Trim();
+                        value = value.Replace("<br>", "\n").Replace("\\n", "\n");
+
+                        // Le CSV écrase les entries sérialisées (source de vérité)
+                        _lookup[key] = value;
+                    }
                 }
             }
         }
