@@ -1,5 +1,6 @@
 using UnityEngine;
 using VoidWarranty.Core;
+using VoidWarranty.Interaction;
 
 namespace SubSurface.Level
 {
@@ -24,6 +25,9 @@ namespace SubSurface.Level
         [Header("Audio")]
         [SerializeField] private AudioClip _pressClip;
         [SerializeField] private AudioClip _deniedClip;
+
+        [Header("Animation")]
+        [SerializeField] private ButtonAnimator _animator;
 
         private AudioSource _audioSource;
 
@@ -52,6 +56,8 @@ namespace SubSurface.Level
 
             if (_elevatorController.DoorsOpen || _elevatorController.IsDescending || _elevatorController.HasArrived)
                 return;
+
+            _animator?.PressAndReturn();
 
             if (_audioSource != null && _pressClip != null)
                 _audioSource.PlayOneShot(_pressClip);

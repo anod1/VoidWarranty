@@ -30,6 +30,10 @@ namespace VoidWarranty.Interaction
         [Header("Audio")]
         [SerializeField] private AudioClip _pressClip;
 
+        [Header("Animation")]
+        [Tooltip("Optionnel — composant ButtonAnimator pour l'enfoncement visuel")]
+        [SerializeField] private ButtonAnimator _animator;
+
         private readonly SyncVar<bool> _isDisabled = new();
         private bool _holding;
 
@@ -65,6 +69,7 @@ namespace VoidWarranty.Interaction
         {
             if (_isDisabled.Value) return;
             _holding = true;
+            _animator?.Press();
             CmdDoAction();
         }
 
@@ -72,6 +77,7 @@ namespace VoidWarranty.Interaction
         {
             if (!_holding) return;
             _holding = false;
+            _animator?.Release();
 
             if (_holdMode)
                 CmdUndoAction();

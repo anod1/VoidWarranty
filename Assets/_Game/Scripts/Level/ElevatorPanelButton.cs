@@ -1,5 +1,6 @@
 using UnityEngine;
 using VoidWarranty.Core;
+using VoidWarranty.Interaction;
 
 namespace SubSurface.Level
 {
@@ -24,6 +25,9 @@ namespace SubSurface.Level
         [Header("Audio")]
         [SerializeField] private AudioClip _pressClip;
         [SerializeField] private AudioClip _deniedClip;
+
+        [Header("Animation")]
+        [SerializeField] private ButtonAnimator _animator;
 
         private AudioSource _audioSource;
         private bool _activated;
@@ -55,6 +59,7 @@ namespace SubSurface.Level
             }
 
             _activated = true;
+            _animator?.PressAndReturn();
 
             if (_audioSource != null && _pressClip != null)
                 _audioSource.PlayOneShot(_pressClip);

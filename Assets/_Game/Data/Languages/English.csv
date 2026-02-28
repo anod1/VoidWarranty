@@ -62,3 +62,4 @@ ITEM_ORANGE_BADGE_DESC;A worn orange access badge. Smells like seawater.
 FEEDBACK_INVENTORY_FULL;Inventory full
 INPUT_DROP;[G]
 ACTION_DROP_ITEM;Drop
+ACTION_EXAMINE;Examine

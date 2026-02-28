@@ -69,3 +69,4 @@ ITEM_ORANGE_BADGE_DESC;Un badge d'accès orange usé. Sent l'eau de mer.
 FEEDBACK_INVENTORY_FULL;Inventaire plein
 INPUT_DROP;[G]
 ACTION_DROP_ITEM;Jeter
+ACTION_EXAMINE;Examiner
