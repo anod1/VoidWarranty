@@ -1,12 +1,14 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
+using VoidWarranty.Player;
 
 namespace SubSurface.Puzzle
 {
     /// <summary>
     /// Logique de dessin locale sur tableau blanc via RenderTexture.
-    /// Click gauche maintenu = dessine, relâché = arrête.
+    /// Click gauche = dessine, click droit = efface.
+    /// Requiert un item marqueur tenu en main (configurable via _requiredItemId).
     /// Les traits sont envoyés à WhiteboardSync pour la synchronisation réseau.
     ///
     /// SETUP ÉDITEUR :
@@ -15,6 +17,7 @@ namespace SubSurface.Puzzle
     /// → Inspector : _boardRenderer = MeshRenderer du quad
     /// → Inspector : _boardCollider = MeshCollider du quad
     /// → Inspector : _sync = WhiteboardSync sur le parent
+    /// → Inspector : _requiredItemId = ID de l'item marqueur requis (ex: "marker")
     /// </summary>
     public class WhiteboardDrawing : MonoBehaviour
     {
@@ -25,30 +28,54 @@ namespace SubSurface.Puzzle
         [Header("Texture")]
         [SerializeField] private int _textureWidth = 1024;
         [SerializeField] private int _textureHeight = 1024;
-        [SerializeField] private Color _clearColor = new Color(0.05f, 0.15f, 0.05f, 1f);
+        [SerializeField] private Color _clearColor = new Color(0.95f, 0.95f, 0.92f, 1f);
 
-        [Header("Brush")]
+        [Header("Brush (draw)")]
         [SerializeField] private float _brushRadius = 0.005f;
-        [SerializeField] private Color _brushColor = Color.white;
+        [SerializeField] private Color _brushColor = new Color(0.1f, 0.1f, 0.1f, 1f);
         [SerializeField] private int _brushTextureSize = 32;
+
+        [Header("Eraser")]
+        [Tooltip("Rayon de la gomme (plus gros que le brush)")]
+        [SerializeField] private float _eraserRadius = 0.02f;
+
+        [Header("Item requis")]
+        [Tooltip("ID de l'item à tenir en main pour dessiner (vide = pas de restriction)")]
+        [SerializeField] private string _requiredItemId = "marker";
 
         [Header("Network")]
         [SerializeField] private WhiteboardSync _sync;
 
         private RenderTexture _renderTexture;
         private Texture2D _brushTexture;
-        private Material _brushMaterial;
+        private Material _drawMaterial;
+        private Material _eraserMaterial;
         private Camera _mainCamera;
 
         private bool _isActive;
         private bool _isDrawing;
+        private bool _isErasing;
         private Vector2 _lastUv;
         private int _nextStrokeId;
         private List<Vector2> _pendingPoints;
 
+        // Rayon actif (brush ou eraser selon le mode)
+        private float _activeRadius;
+
         // Throttle : n'envoie un point que si l'UV a bougé suffisamment
         private Vector2 _lastSentUv;
         private float _sendThreshold;
+
+        /// <summary>True si le joueur local possède le marqueur requis en main.</summary>
+        public bool HasRequiredItem
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_requiredItemId)) return true;
+                var inventory = PlayerInventory.LocalInstance;
+                return inventory != null && inventory.EquippedItemId == _requiredItemId;
+            }
+        }
 
         // =====================================================================
         // Lifecycle
@@ -57,7 +84,7 @@ namespace SubSurface.Puzzle
         private void Awake()
         {
             CreateRenderTexture();
-            CreateBrushTexture();
+            CreateBrushTextures();
             _sendThreshold = _brushRadius * 0.3f;
             _pendingPoints = new List<Vector2>();
         }
@@ -73,13 +100,24 @@ namespace SubSurface.Puzzle
             if (_brushTexture != null)
                 Destroy(_brushTexture);
 
-            if (_brushMaterial != null)
-                Destroy(_brushMaterial);
+            if (_drawMaterial != null)
+                Destroy(_drawMaterial);
+
+            if (_eraserMaterial != null)
+                Destroy(_eraserMaterial);
         }
 
         private void Update()
         {
             if (!_isActive) return;
+
+            // Check item requis
+            if (!HasRequiredItem)
+            {
+                if (_isDrawing) EndStroke();
+                if (_isErasing) EndStroke();
+                return;
+            }
 
             var mouse = Mouse.current;
             if (mouse == null) return;
@@ -89,6 +127,7 @@ namespace SubSurface.Puzzle
             if (_mainCamera == null) return;
 
             bool leftDown = mouse.leftButton.isPressed;
+            bool rightDown = mouse.rightButton.isPressed;
             Vector2 screenPos = mouse.position.ReadValue();
 
             Ray ray = _mainCamera.ScreenPointToRay(screenPos);
@@ -97,48 +136,75 @@ namespace SubSurface.Puzzle
             {
                 Vector2 uv = hit.textureCoord;
 
-                if (leftDown)
+                if (leftDown && !rightDown)
                 {
-                    if (!_isDrawing)
-                    {
-                        // Pen down — début d'un trait
-                        _isDrawing = true;
-                        _lastUv = uv;
-                        _lastSentUv = uv;
-                        _pendingPoints.Clear();
-                        _pendingPoints.Add(uv);
-
-                        StampBrush(uv);
-
-                        if (_sync != null)
-                            _sync.CmdBeginStroke(_nextStrokeId, 0, _brushRadius);
-                    }
-                    else
-                    {
-                        // Pen move — continuer le trait
-                        DrawLineTo(_lastUv, uv);
-                        _lastUv = uv;
-
-                        // Throttle : n'ajoute au batch que si assez de mouvement
-                        if (Vector2.Distance(uv, _lastSentUv) >= _sendThreshold)
-                        {
-                            _pendingPoints.Add(uv);
-                            _lastSentUv = uv;
-                        }
-                    }
+                    // Draw mode
+                    if (_isErasing) EndStroke();
+                    HandleStroke(uv, false);
                 }
-                else if (_isDrawing)
+                else if (rightDown && !leftDown)
                 {
-                    EndStroke();
+                    // Erase mode
+                    if (_isDrawing) EndStroke();
+                    HandleStroke(uv, true);
+                }
+                else
+                {
+                    // Rien ou les deux → arrêter
+                    if (_isDrawing || _isErasing) EndStroke();
                 }
             }
-            else if (_isDrawing && !leftDown)
+            else
             {
-                EndStroke();
+                if (_isDrawing || _isErasing) EndStroke();
             }
 
-            // Envoyer le batch de points accumulés ce frame
             FlushPendingPoints();
+        }
+
+        // =====================================================================
+        // Stroke handling (draw ou erase)
+        // =====================================================================
+
+        private void HandleStroke(Vector2 uv, bool erasing)
+        {
+            bool isActive = erasing ? _isErasing : _isDrawing;
+            float radius = erasing ? _eraserRadius : _brushRadius;
+
+            if (!isActive)
+            {
+                // Début du trait
+                if (erasing)
+                    _isErasing = true;
+                else
+                    _isDrawing = true;
+
+                _activeRadius = radius;
+                _lastUv = uv;
+                _lastSentUv = uv;
+                _pendingPoints.Clear();
+                _pendingPoints.Add(uv);
+
+                StampAt(uv, erasing);
+
+                // colorIndex: 0 = draw, 1 = erase
+                byte colorIndex = (byte)(erasing ? 1 : 0);
+                if (_sync != null)
+                    _sync.CmdBeginStroke(_nextStrokeId, colorIndex, radius);
+            }
+            else
+            {
+                // Continuer le trait
+                DrawLineAt(_lastUv, uv, erasing);
+                _lastUv = uv;
+
+                float threshold = erasing ? _eraserRadius * 0.3f : _sendThreshold;
+                if (Vector2.Distance(uv, _lastSentUv) >= threshold)
+                {
+                    _pendingPoints.Add(uv);
+                    _lastSentUv = uv;
+                }
+            }
         }
 
         // =====================================================================
@@ -150,8 +216,10 @@ namespace SubSurface.Puzzle
         {
             _isActive = active;
 
-            if (!active && _isDrawing)
-                EndStroke();
+            if (!active)
+            {
+                if (_isDrawing || _isErasing) EndStroke();
+            }
         }
 
         // =====================================================================
@@ -159,27 +227,24 @@ namespace SubSurface.Puzzle
         // =====================================================================
 
         /// <summary>Dessine un segment distant sur le board (temps réel).</summary>
-        public void DrawRemoteSegment(Vector2 from, Vector2 to, float brushRadius)
+        public void DrawRemoteSegment(Vector2 from, Vector2 to, float brushRadius, bool erasing)
         {
-            float savedRadius = _brushRadius;
-            _brushRadius = brushRadius;
-            DrawLineTo(from, to);
-            _brushRadius = savedRadius;
+            float savedRadius = _activeRadius;
+            _activeRadius = brushRadius;
+            DrawLineAt(from, to, erasing);
+            _activeRadius = savedRadius;
         }
 
         /// <summary>Rejoue un trait complet (late-joiner).</summary>
-        public void ReplayStroke(Vector2[] points, float brushRadius)
+        public void ReplayStroke(Vector2[] points, float brushRadius, bool erasing)
         {
             if (points == null || points.Length == 0) return;
 
-            float savedRadius = _brushRadius;
-            _brushRadius = brushRadius;
+            _activeRadius = brushRadius;
 
-            StampBrush(points[0]);
+            StampAt(points[0], erasing);
             for (int i = 1; i < points.Length; i++)
-                DrawLineTo(points[i - 1], points[i]);
-
-            _brushRadius = savedRadius;
+                DrawLineAt(points[i - 1], points[i], erasing);
         }
 
         /// <summary>Efface le tableau.</summary>
@@ -195,7 +260,7 @@ namespace SubSurface.Puzzle
         // Drawing internals
         // =====================================================================
 
-        private void StampBrush(Vector2 uv)
+        private void StampAt(Vector2 uv, bool erasing)
         {
             RenderTexture prev = RenderTexture.active;
             RenderTexture.active = _renderTexture;
@@ -203,25 +268,28 @@ namespace SubSurface.Puzzle
             GL.PushMatrix();
             GL.LoadPixelMatrix(0, _textureWidth, _textureHeight, 0);
 
+            float radius = erasing ? _eraserRadius : _activeRadius;
             float px = uv.x * _textureWidth;
             float py = (1f - uv.y) * _textureHeight;
-            float r = _brushRadius * _textureWidth;
+            float r = radius * _textureWidth;
 
             Rect brushRect = new Rect(px - r, py - r, r * 2f, r * 2f);
-            Graphics.DrawTexture(brushRect, _brushTexture, _brushMaterial);
+            Material mat = erasing ? _eraserMaterial : _drawMaterial;
+            Graphics.DrawTexture(brushRect, _brushTexture, mat);
 
             GL.PopMatrix();
             RenderTexture.active = prev;
         }
 
-        private void DrawLineTo(Vector2 from, Vector2 to)
+        private void DrawLineAt(Vector2 from, Vector2 to, bool erasing)
         {
+            float radius = erasing ? _eraserRadius : _activeRadius;
             float dist = Vector2.Distance(from, to);
-            float step = _brushRadius * 0.5f;
+            float step = radius * 0.5f;
 
             if (dist < 0.0001f)
             {
-                StampBrush(to);
+                StampAt(to, erasing);
                 return;
             }
 
@@ -230,7 +298,7 @@ namespace SubSurface.Puzzle
             {
                 float t = steps > 0 ? (float)i / steps : 1f;
                 Vector2 point = Vector2.Lerp(from, to, t);
-                StampBrush(point);
+                StampAt(point, erasing);
             }
         }
 
@@ -241,6 +309,7 @@ namespace SubSurface.Puzzle
         private void EndStroke()
         {
             _isDrawing = false;
+            _isErasing = false;
             FlushPendingPoints();
 
             if (_sync != null)
@@ -282,7 +351,7 @@ namespace SubSurface.Puzzle
             }
         }
 
-        private void CreateBrushTexture()
+        private void CreateBrushTextures()
         {
             int size = _brushTextureSize;
             _brushTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
@@ -294,7 +363,6 @@ namespace SubSurface.Puzzle
                 {
                     float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
                     float t = Mathf.Clamp01(1f - dist / center);
-                    // Smooth falloff pour un trait doux
                     t = t * t * (3f - 2f * t);
                     _brushTexture.SetPixel(x, y, new Color(1f, 1f, 1f, t));
                 }
@@ -302,9 +370,13 @@ namespace SubSurface.Puzzle
 
             _brushTexture.Apply();
 
-            // Material pour le stamp avec blending alpha
-            _brushMaterial = new Material(Shader.Find("Hidden/Internal-GUITextureClip"));
-            _brushMaterial.color = _brushColor;
+            // Material dessin (encre sombre)
+            _drawMaterial = new Material(Shader.Find("Hidden/Internal-GUITextureClip"));
+            _drawMaterial.color = _brushColor;
+
+            // Material gomme (couleur du tableau = efface)
+            _eraserMaterial = new Material(Shader.Find("Hidden/Internal-GUITextureClip"));
+            _eraserMaterial.color = _clearColor;
         }
     }
 }

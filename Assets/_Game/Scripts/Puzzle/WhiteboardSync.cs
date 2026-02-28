@@ -61,15 +61,16 @@ namespace SubSurface.Puzzle
             foreach (var stroke in _strokeHistory)
             {
                 if (stroke.Points.Count == 0) continue;
-                TargetReplayStroke(conn, stroke.StrokeId, stroke.BrushRadius, stroke.Points.ToArray());
+                bool erasing = stroke.ColorIndex == 1;
+                TargetReplayStroke(conn, stroke.StrokeId, stroke.BrushRadius, stroke.Points.ToArray(), erasing);
             }
         }
 
         [TargetRpc]
-        private void TargetReplayStroke(NetworkConnection conn, int strokeId, float brushRadius, Vector2[] points)
+        private void TargetReplayStroke(NetworkConnection conn, int strokeId, float brushRadius, Vector2[] points, bool erasing)
         {
             if (_drawing != null)
-                _drawing.ReplayStroke(points, brushRadius);
+                _drawing.ReplayStroke(points, brushRadius, erasing);
         }
 
         // =====================================================================
@@ -106,7 +107,8 @@ namespace SubSurface.Puzzle
             _activeStrokes[key] = stroke;
 
             int senderClientId = sender != null ? sender.ClientId : -1;
-            ObserversDrawSegments(key, uvs, stroke.BrushRadius, senderClientId);
+            bool erasing = stroke.ColorIndex == 1;
+            ObserversDrawSegments(key, uvs, stroke.BrushRadius, senderClientId, erasing);
         }
 
         /// <summary>Fin du trait. Appelé par WhiteboardDrawing quand le joueur relâche le click.</summary>
@@ -131,7 +133,7 @@ namespace SubSurface.Puzzle
         // =====================================================================
 
         [ObserversRpc]
-        private void ObserversDrawSegments(int strokeKey, Vector2[] uvs, float brushRadius, int senderClientId)
+        private void ObserversDrawSegments(int strokeKey, Vector2[] uvs, float brushRadius, int senderClientId, bool erasing)
         {
             // Le dessinateur local skip (il a déjà dessiné côté client)
             if (base.ClientManager != null && base.ClientManager.Connection.ClientId == senderClientId)
@@ -142,7 +144,7 @@ namespace SubSurface.Puzzle
             // Premier point du stroke distant : stamp sans segment
             if (!_lastRemotePoint.TryGetValue(strokeKey, out var lastPt))
             {
-                _drawing.DrawRemoteSegment(uvs[0], uvs[0], brushRadius);
+                _drawing.DrawRemoteSegment(uvs[0], uvs[0], brushRadius, erasing);
                 lastPt = uvs[0];
 
                 if (uvs.Length == 1)
@@ -156,7 +158,7 @@ namespace SubSurface.Puzzle
             for (int i = 0; i < uvs.Length; i++)
             {
                 Vector2 from = i == 0 ? lastPt : uvs[i - 1];
-                _drawing.DrawRemoteSegment(from, uvs[i], brushRadius);
+                _drawing.DrawRemoteSegment(from, uvs[i], brushRadius, erasing);
             }
 
             _lastRemotePoint[strokeKey] = uvs[uvs.Length - 1];

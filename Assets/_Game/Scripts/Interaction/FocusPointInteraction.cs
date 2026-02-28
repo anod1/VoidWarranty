@@ -31,6 +31,11 @@ namespace VoidWarranty.Interaction
         [Tooltip("Déverrouille le curseur en mode focus (pour dessin, UI, etc.)")]
         [SerializeField] private bool _unlockCursor;
 
+        [Header("Item requis (optionnel)")]
+        [Tooltip("Si renseigné, le joueur doit tenir cet item en main pour interagir")]
+        [SerializeField] private string _requiredItemId;
+        [SerializeField] private string _missingItemPromptKey = "FEEDBACK_MARKER_NEEDED";
+
         [Header("Events")]
         public UnityEvent OnEnterFocus;
         public UnityEvent OnExitFocus;
@@ -53,6 +58,7 @@ namespace VoidWarranty.Interaction
             }
             else
             {
+                if (!HasRequiredItem()) return;
                 EnterFocus(interactor);
             }
         }
@@ -64,7 +70,18 @@ namespace VoidWarranty.Interaction
             if (_isFocused)
                 return $"<size=80%><color=yellow>{input} {LocalizationManager.Get(_exitPromptKey)}</color></size>";
 
+            // Item requis manquant → prompt gris
+            if (!HasRequiredItem())
+                return $"<size=80%><color=#666666>{LocalizationManager.Get(_missingItemPromptKey)}</color></size>";
+
             return $"<size=80%><color=yellow>{input} {LocalizationManager.Get(_enterPromptKey)}</color></size>";
+        }
+
+        private bool HasRequiredItem()
+        {
+            if (string.IsNullOrEmpty(_requiredItemId)) return true;
+            var inventory = PlayerInventory.LocalInstance;
+            return inventory != null && inventory.EquippedItemId == _requiredItemId;
         }
 
         private void EnterFocus(GameObject player)
