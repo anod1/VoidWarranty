@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using FishNet.Object;
 using FishNet.Connection;
 using VoidWarranty.Interaction;
@@ -24,14 +23,6 @@ namespace VoidWarranty.Player
         [Tooltip("Transform enfant de la caméra, positionné pour le repos (objet tenu bas).")]
         [SerializeField] private Transform _grabHoldPoint;
 
-        [Header("Brandish (lever l'objet — clic gauche)")]
-        [Tooltip("Offset position ajouté quand on brandit l'objet (local au hold point).")]
-        [SerializeField] private Vector3 _brandishOffset = new Vector3(0f, 0.3f, 0f);
-        [Tooltip("Vitesse de transition repos ↔ brandi.")]
-        [SerializeField] private float _brandishSpeed = 8f;
-        [Tooltip("Angle de rotation quand on brandit (180 = retournement).")]
-        [SerializeField] private float _brandishAngle = 180f;
-
         [Header("References")]
         [SerializeField] private Transform _cameraRoot;
         [SerializeField] private PlayerInputReader _inputReader;
@@ -39,7 +30,7 @@ namespace VoidWarranty.Player
 
         private GrabbableObject _currentObject;
         private Rigidbody _heldRb;
-        private float _brandishT; // 0 = repos, 1 = brandi
+        private IGrabAction _currentAction; // Action modulaire sur l'objet tenu
         private PlayerInventory _inventory;
 
         /// <summary>True si le joueur porte un objet grabbé.</summary>
@@ -84,17 +75,14 @@ namespace VoidWarranty.Player
         }
 
         // =====================================================================
-        // Brandish — Clic gauche lève et retourne l'objet
+        // Update — Délègue à IGrabAction si présent
         // =====================================================================
 
         private void Update()
         {
             if (!base.IsOwner || _currentObject == null) return;
 
-            var mouse = Mouse.current;
-            bool wantBrandish = mouse != null && mouse.leftButton.isPressed;
-            float target = wantBrandish ? 1f : 0f;
-            _brandishT = Mathf.MoveTowards(_brandishT, target, _brandishSpeed * Time.deltaTime);
+            _currentAction?.OnGrabUpdate();
         }
 
         // =====================================================================
@@ -126,15 +114,8 @@ namespace VoidWarranty.Player
                 targetRot *= Quaternion.Euler(data.HeldRotationOffset);
             }
 
-            // 3. Brandish — lerp position + rotation quand clic gauche
-            if (_brandishT > 0.001f)
-            {
-                targetPos += (hold.right * _brandishOffset.x +
-                              hold.up * _brandishOffset.y +
-                              hold.forward * _brandishOffset.z) * _brandishT;
-
-                targetRot *= Quaternion.Euler(0f, _brandishT * _brandishAngle, 0f);
-            }
+            // 3. IGrabAction modifie la cible (brandish, oscillation, etc.)
+            _currentAction?.ModifyHoldTarget(ref targetPos, ref targetRot, hold);
 
             // 4. Velocity Drive — pilotage par vélocité
             Vector3 direction = targetPos - _heldRb.position;
@@ -207,6 +188,10 @@ namespace VoidWarranty.Player
             Physics.SyncTransforms();
             ToggleCollisions(true);
 
+            // Détecte IGrabAction sur l'objet (BrandishAction, ShockwaveAction, etc.)
+            _currentAction = _currentObject.GetComponent<IGrabAction>();
+            _currentAction?.OnGrabStart();
+
             // Range automatiquement l'objet d'inventaire en main
             if (_inventory != null)
                 _inventory.SetGrabActive(true);
@@ -248,10 +233,11 @@ namespace VoidWarranty.Player
                 _heldRb.AddForce(_cameraRoot.forward * _throwForce, ForceMode.Impulse);
 
             // 4. Reset
+            _currentAction?.OnGrabEnd();
+            _currentAction = null;
             _currentObject = null;
             _heldRb = null;
             CurrentHeldMass = 0f;
-            _brandishT = 0f;
 
             // Restaure l'objet d'inventaire en main
             if (_inventory != null)
