@@ -66,3 +66,8 @@ ACTION_EXAMINE;Examine
 ACTION_DRAW;Draw
 FEEDBACK_BOARD_OCCUPIED;Board in use
 FEEDBACK_MARKER_NEEDED;Marker required
+ITEM_MARKER_NAME;Marker
+ITEM_MARKER_DESC;A thick industrial marker. Smells like chemicals.
+INPUT_GRAB;[F]
+ACTION_CARRY;Carry
+ITEM_WHITEBOARD_NAME;Whiteboard

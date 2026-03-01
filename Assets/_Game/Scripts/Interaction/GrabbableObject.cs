@@ -139,10 +139,11 @@ namespace VoidWarranty.Interaction
 
         public virtual string GetInteractionPrompt()
         {
-            if (_data == null) return "Unknown Object";
+            if (_data == null) return "???";
             string name = LocalizationManager.Get(_data.NameKey);
-            string action = LocalizationManager.Get("ACTION_TAKE");
-            return $"{name}\n<size=80%><color=yellow>[{action}]</color></size>";
+            string input = LocalizationManager.Get("INPUT_GRAB");
+            string action = LocalizationManager.Get("ACTION_CARRY");
+            return $"{name}\n<size=80%><color=yellow>{input} {action}</color></size>";
         }
     }
 }

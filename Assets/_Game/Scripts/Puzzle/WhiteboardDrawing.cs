@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections.Generic;
+using VoidWarranty.Core;
+using VoidWarranty.Interaction;
 using VoidWarranty.Player;
 
 namespace SubSurface.Puzzle
@@ -8,22 +10,28 @@ namespace SubSurface.Puzzle
     /// <summary>
     /// Logique de dessin locale sur tableau blanc via RenderTexture.
     /// Click gauche = dessine, click droit = efface.
-    /// Requiert un item marqueur tenu en main (configurable via _requiredItemId).
-    /// Les traits sont envoyés à WhiteboardSync pour la synchronisation réseau.
+    /// Fonctionne en permanence : si le joueur tient le marqueur et que
+    /// le raycast caméra touche le board, il peut dessiner directement.
+    /// Pas besoin de FocusPointInteraction.
     ///
     /// SETUP ÉDITEUR :
     /// → Attacher sur le GO du quad (BoardQuad)
-    /// → Le quad DOIT avoir un MeshCollider (requis pour hit.textureCoord)
+    /// → Le quad DOIT avoir un BoxCollider fin (pas de MeshCollider)
+    ///   UV calculé manuellement depuis la position locale du hit
+    /// → Le parent doit avoir un BoxCollider pour la physique/grab
     /// → Inspector : _boardRenderer = MeshRenderer du quad
-    /// → Inspector : _boardCollider = MeshCollider du quad
+    /// → Inspector : _boardCollider = BoxCollider du quad
     /// → Inspector : _sync = WhiteboardSync sur le parent
     /// → Inspector : _requiredItemId = ID de l'item marqueur requis (ex: "marker")
     /// </summary>
-    public class WhiteboardDrawing : MonoBehaviour
+    public class WhiteboardDrawing : MonoBehaviour, IInteractable
     {
         [Header("Board")]
         [SerializeField] private MeshRenderer _boardRenderer;
-        [SerializeField] private MeshCollider _boardCollider;
+        [SerializeField] private Collider _boardCollider;
+
+        [Header("Prompt")]
+        [SerializeField] private string _missingItemPromptKey = "FEEDBACK_MARKER_NEEDED";
 
         [Header("Texture")]
         [SerializeField] private int _textureWidth = 1024;
@@ -48,11 +56,11 @@ namespace SubSurface.Puzzle
 
         private RenderTexture _renderTexture;
         private Texture2D _brushTexture;
+        private Texture2D _eraserTexture;
         private Material _drawMaterial;
         private Material _eraserMaterial;
         private Camera _mainCamera;
 
-        private bool _isActive;
         private bool _isDrawing;
         private bool _isErasing;
         private Vector2 _lastUv;
@@ -66,15 +74,34 @@ namespace SubSurface.Puzzle
         private Vector2 _lastSentUv;
         private float _sendThreshold;
 
-        /// <summary>True si le joueur local possède le marqueur requis en main.</summary>
-        public bool HasRequiredItem
+        /// <summary>True si le joueur local possède le marqueur requis en main (visible).</summary>
+        private bool HasRequiredItem
         {
             get
             {
                 if (string.IsNullOrEmpty(_requiredItemId)) return true;
                 var inventory = PlayerInventory.LocalInstance;
-                return inventory != null && inventory.EquippedItemId == _requiredItemId;
+                if (inventory == null) return false;
+                // Bloqué si le grab est actif (objet porté → clic gauche = brandish, pas dessin)
+                if (inventory.IsGrabActive) return false;
+                return inventory.EquippedItemId == _requiredItemId;
             }
+        }
+
+        // =====================================================================
+        // IInteractable — prompt contextuel
+        // =====================================================================
+
+        public void Interact(GameObject interactor) { }
+
+        public string GetInteractionPrompt()
+        {
+            if (HasRequiredItem)
+                return string.Empty; // Marker en main → pas de prompt, dessine direct
+
+            // Pas de marker → feedback gris
+            string msg = LocalizationManager.Get(_missingItemPromptKey);
+            return $"<color=#888888>{msg}</color>";
         }
 
         // =====================================================================
@@ -100,6 +127,9 @@ namespace SubSurface.Puzzle
             if (_brushTexture != null)
                 Destroy(_brushTexture);
 
+            if (_eraserTexture != null)
+                Destroy(_eraserTexture);
+
             if (_drawMaterial != null)
                 Destroy(_drawMaterial);
 
@@ -109,9 +139,7 @@ namespace SubSurface.Puzzle
 
         private void Update()
         {
-            if (!_isActive) return;
-
-            // Check item requis
+            // Pas de marker en main → pas de dessin
             if (!HasRequiredItem)
             {
                 if (_isDrawing) EndStroke();
@@ -128,13 +156,19 @@ namespace SubSurface.Puzzle
 
             bool leftDown = mouse.leftButton.isPressed;
             bool rightDown = mouse.rightButton.isPressed;
-            Vector2 screenPos = mouse.position.ReadValue();
 
-            Ray ray = _mainCamera.ScreenPointToRay(screenPos);
+            // Raycast depuis le centre de l'écran (crosshair)
+            Ray ray = _mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
 
-            if (Physics.Raycast(ray, out RaycastHit hit, 5f) && hit.collider == _boardCollider)
+            // ~0 = tous les layers y compris Ignore Raycast (layer 2)
+            if (Physics.Raycast(ray, out RaycastHit hit, 5f, ~0)
+                && hit.collider == _boardCollider)
             {
-                Vector2 uv = hit.textureCoord;
+                // UV calculé manuellement : Quad local space (-0.5..+0.5) → UV (0..1)
+                Vector3 local = _boardCollider.transform.InverseTransformPoint(hit.point);
+                Vector2 uv = new Vector2(local.x + 0.5f, local.y + 0.5f);
+                uv.x = Mathf.Clamp01(uv.x);
+                uv.y = Mathf.Clamp01(uv.y);
 
                 if (leftDown && !rightDown)
                 {
@@ -208,21 +242,6 @@ namespace SubSurface.Puzzle
         }
 
         // =====================================================================
-        // Activation (appelé par FocusPointInteraction via UnityEvent)
-        // =====================================================================
-
-        /// <summary>Active/désactive le mode dessin.</summary>
-        public void SetDrawingActive(bool active)
-        {
-            _isActive = active;
-
-            if (!active)
-            {
-                if (_isDrawing || _isErasing) EndStroke();
-            }
-        }
-
-        // =====================================================================
         // Public API (appelé par WhiteboardSync pour les traits distants)
         // =====================================================================
 
@@ -275,7 +294,8 @@ namespace SubSurface.Puzzle
 
             Rect brushRect = new Rect(px - r, py - r, r * 2f, r * 2f);
             Material mat = erasing ? _eraserMaterial : _drawMaterial;
-            Graphics.DrawTexture(brushRect, _brushTexture, mat);
+            Texture2D tex = erasing ? _eraserTexture : _brushTexture;
+            Graphics.DrawTexture(brushRect, tex, mat);
 
             GL.PopMatrix();
             RenderTexture.active = prev;
@@ -354,28 +374,45 @@ namespace SubSurface.Puzzle
         private void CreateBrushTextures()
         {
             int size = _brushTextureSize;
-            _brushTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-
             float center = size * 0.5f;
+
+            // --- Brush dessin : cercle soft (alpha graduel) ---
+            _brushTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
                     float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
                     float t = Mathf.Clamp01(1f - dist / center);
-                    t = t * t * (3f - 2f * t);
+                    t = t * t * (3f - 2f * t); // SmoothStep falloff
                     _brushTexture.SetPixel(x, y, new Color(1f, 1f, 1f, t));
                 }
             }
-
             _brushTexture.Apply();
 
-            // Material dessin (encre sombre)
-            _drawMaterial = new Material(Shader.Find("Hidden/Internal-GUITextureClip"));
+            // --- Brush gomme : cercle hard (alpha = 1 dans le disque) ---
+            _eraserTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    float a = dist <= center ? 1f : 0f;
+                    _eraserTexture.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            }
+            _eraserTexture.Apply();
+
+            // --- Materials ---
+
+            // Dessin : encre sombre, alpha-blend normal
+            Shader brushShader = Shader.Find("Hidden/Internal-GUITextureClip");
+            _drawMaterial = new Material(brushShader);
             _drawMaterial.color = _brushColor;
 
-            // Material gomme (couleur du tableau = efface)
-            _eraserMaterial = new Material(Shader.Find("Hidden/Internal-GUITextureClip"));
+            // Gomme : shader custom qui écrase les pixels (Blend One Zero + clip)
+            Shader eraserShader = Shader.Find("Hidden/EraserUnlit");
+            _eraserMaterial = new Material(eraserShader);
             _eraserMaterial.color = _clearColor;
         }
     }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using FishNet.Object;
 using FishNet.Connection;
 using VoidWarranty.Interaction;
@@ -19,15 +20,30 @@ namespace VoidWarranty.Player
         [SerializeField] private float _breakDistance = 1.5f;
         [SerializeField] private float _maxGrabVelocity = 15f;
 
+        [Header("Hold Point (séparé de l'inventaire)")]
+        [Tooltip("Transform enfant de la caméra, positionné pour le repos (objet tenu bas).")]
+        [SerializeField] private Transform _grabHoldPoint;
+
+        [Header("Brandish (lever l'objet — clic gauche)")]
+        [Tooltip("Offset position ajouté quand on brandit l'objet (local au hold point).")]
+        [SerializeField] private Vector3 _brandishOffset = new Vector3(0f, 0.3f, 0f);
+        [Tooltip("Vitesse de transition repos ↔ brandi.")]
+        [SerializeField] private float _brandishSpeed = 8f;
+        [Tooltip("Angle de rotation quand on brandit (180 = retournement).")]
+        [SerializeField] private float _brandishAngle = 180f;
+
         [Header("References")]
         [SerializeField] private Transform _cameraRoot;
-        [SerializeField] private Transform _holdPoint;
         [SerializeField] private PlayerInputReader _inputReader;
         [SerializeField] private CharacterController _characterController;
 
         private GrabbableObject _currentObject;
         private Rigidbody _heldRb;
+        private float _brandishT; // 0 = repos, 1 = brandi
+        private PlayerInventory _inventory;
 
+        /// <summary>True si le joueur porte un objet grabbé.</summary>
+        public bool IsHolding => _currentObject != null;
         public float CurrentHeldMass { get; private set; } = 0f;
 
         // =====================================================================
@@ -41,7 +57,10 @@ namespace VoidWarranty.Player
             if (!base.IsOwner)
                 enabled = false;
             else
+            {
                 _inputReader.OnGrabToggleEvent += HandleGrabToggle;
+                _inventory = GetComponent<PlayerInventory>();
+            }
         }
 
         public override void OnStopClient()
@@ -65,7 +84,21 @@ namespace VoidWarranty.Player
         }
 
         // =====================================================================
-        // Physics Update — Déplace l'objet tenu vers la main
+        // Brandish — Clic gauche lève et retourne l'objet
+        // =====================================================================
+
+        private void Update()
+        {
+            if (!base.IsOwner || _currentObject == null) return;
+
+            var mouse = Mouse.current;
+            bool wantBrandish = mouse != null && mouse.leftButton.isPressed;
+            float target = wantBrandish ? 1f : 0f;
+            _brandishT = Mathf.MoveTowards(_brandishT, target, _brandishSpeed * Time.deltaTime);
+        }
+
+        // =====================================================================
+        // Physics Update — Déplace l'objet tenu vers le grab hold point
         // =====================================================================
 
         private void FixedUpdate()
@@ -76,21 +109,34 @@ namespace VoidWarranty.Player
 
         private void MoveObjectToHand()
         {
-            // 1. Calcul de la position cible avec l'offset de l'ItemData
-            Vector3 targetPos = _holdPoint.position;
-            Quaternion targetRot = _holdPoint.rotation;
+            Transform hold = _grabHoldPoint;
 
+            // 1. Position et rotation de base (repos)
+            Vector3 targetPos = hold.position;
+            Quaternion targetRot = hold.rotation;
+
+            // 2. Offsets ItemData (position/rotation en main)
             ItemData data = _currentObject.GetData();
             if (data != null)
             {
-                targetPos += (_holdPoint.right * data.HeldPositionOffset.x) +
-                             (_holdPoint.up * data.HeldPositionOffset.y) +
-                             (_holdPoint.forward * data.HeldPositionOffset.z);
+                targetPos += (hold.right * data.HeldPositionOffset.x) +
+                             (hold.up * data.HeldPositionOffset.y) +
+                             (hold.forward * data.HeldPositionOffset.z);
 
                 targetRot *= Quaternion.Euler(data.HeldRotationOffset);
             }
 
-            // 2. Velocity Drive — pilotage par vélocité
+            // 3. Brandish — lerp position + rotation quand clic gauche
+            if (_brandishT > 0.001f)
+            {
+                targetPos += (hold.right * _brandishOffset.x +
+                              hold.up * _brandishOffset.y +
+                              hold.forward * _brandishOffset.z) * _brandishT;
+
+                targetRot *= Quaternion.Euler(0f, _brandishT * _brandishAngle, 0f);
+            }
+
+            // 4. Velocity Drive — pilotage par vélocité
             Vector3 direction = targetPos - _heldRb.position;
             float distance = direction.magnitude;
 
@@ -123,8 +169,6 @@ namespace VoidWarranty.Player
 
             if (Physics.Raycast(ray, out RaycastHit hit, _grabDistance, _grabLayer))
             {
-                // GetComponentInParent : cherche sur le collider touché PUIS remonte la hiérarchie
-                // Nécessaire pour les compound colliders (colliders sur les enfants)
                 GrabbableObject grabbable = hit.collider.GetComponentInParent<GrabbableObject>();
                 if (grabbable != null)
                 {
@@ -157,11 +201,15 @@ namespace VoidWarranty.Player
 
             _heldRb.linearVelocity = Vector3.zero;
             _heldRb.angularVelocity = Vector3.zero;
-            _heldRb.position = _holdPoint.position;
-            _heldRb.rotation = _holdPoint.rotation;
+            _heldRb.position = _grabHoldPoint.position;
+            _heldRb.rotation = _grabHoldPoint.rotation;
 
             Physics.SyncTransforms();
             ToggleCollisions(true);
+
+            // Range automatiquement l'objet d'inventaire en main
+            if (_inventory != null)
+                _inventory.SetGrabActive(true);
         }
 
         // =====================================================================
@@ -185,12 +233,10 @@ namespace VoidWarranty.Player
 
             if (Physics.Raycast(dropOrigin, dropDirection, out RaycastHit hit, dropReach, layerMask))
             {
-                // Mur ou sol devant → poser juste avant l'impact
                 finalDropPos = hit.point - (dropDirection * 0.3f);
             }
             else
             {
-                // Rien devant → lâcher à bout de bras
                 finalDropPos = dropOrigin + (dropDirection * dropReach);
             }
 
@@ -205,6 +251,11 @@ namespace VoidWarranty.Player
             _currentObject = null;
             _heldRb = null;
             CurrentHeldMass = 0f;
+            _brandishT = 0f;
+
+            // Restaure l'objet d'inventaire en main
+            if (_inventory != null)
+                _inventory.SetGrabActive(false);
         }
 
         // =====================================================================

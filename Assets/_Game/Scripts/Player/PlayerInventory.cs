@@ -43,6 +43,19 @@ namespace VoidWarranty.Player
         private readonly Dictionary<string, GameObject> _heldVisualCache = new();
         private string _activeVisualId;
 
+        // Grab / Stow state
+        private bool _grabActive;  // Verrouillé par PlayerGrab (objet porté)
+        private bool _stowed;      // Rangé manuellement par le joueur (H)
+
+        /// <summary>True si le grab bloque l'inventaire.</summary>
+        public bool IsGrabActive => _grabActive;
+
+        /// <summary>True si l'item en main est visible (pas stow, pas grab).</summary>
+        public bool IsHeldItemVisible => !_grabActive && !_stowed;
+
+        /// <summary>Fired client-side quand la visibilité de l'item en main change (stow/grab).</summary>
+        public event Action OnHeldVisibilityChanged;
+
         // =====================================================================
         // Public accessors
         // =====================================================================
@@ -103,6 +116,7 @@ namespace VoidWarranty.Player
                 _inputReader.OnHotbarSlotEvent += HandleSlotSelect;
                 _inputReader.OnHotbarScrollEvent += HandleHotbarScroll;
                 _inputReader.OnDropEvent += HandleDrop;
+                _inputReader.OnStowEvent += HandleStow;
             }
         }
 
@@ -123,6 +137,7 @@ namespace VoidWarranty.Player
                 _inputReader.OnHotbarSlotEvent -= HandleSlotSelect;
                 _inputReader.OnHotbarScrollEvent -= HandleHotbarScroll;
                 _inputReader.OnDropEvent -= HandleDrop;
+                _inputReader.OnStowEvent -= HandleStow;
             }
         }
 
@@ -150,20 +165,45 @@ namespace VoidWarranty.Player
 
         private void HandleSlotSelect(int slotIndex)
         {
+            if (_grabActive) return;
             if (slotIndex < 0 || slotIndex >= _hotbarSize) return;
+            bool wasStowed = _stowed;
+            _stowed = false;
             CmdSelectSlot(slotIndex);
+            if (wasStowed)
+            {
+                RefreshHeldVisual();
+                OnHeldVisibilityChanged?.Invoke();
+            }
         }
 
         private void HandleHotbarScroll(float scrollDelta)
         {
+            if (_grabActive) return;
+            bool wasStowed = _stowed;
+            _stowed = false;
             int dir = scrollDelta > 0 ? -1 : 1;
             int newSlot = (_selectedSlot.Value + dir + _hotbarSize) % _hotbarSize;
             CmdSelectSlot(newSlot);
+            if (wasStowed)
+            {
+                RefreshHeldVisual();
+                OnHeldVisibilityChanged?.Invoke();
+            }
         }
 
         private void HandleDrop()
         {
+            if (_grabActive) return;
             CmdDropSelectedItem();
+        }
+
+        private void HandleStow()
+        {
+            if (_grabActive) return;
+            _stowed = !_stowed;
+            RefreshHeldVisual();
+            OnHeldVisibilityChanged?.Invoke();
         }
 
         // =====================================================================
@@ -260,6 +300,27 @@ namespace VoidWarranty.Player
         }
 
         // =====================================================================
+        // Grab Lock — appelé par PlayerGrab pour masquer/bloquer l'inventaire
+        // =====================================================================
+
+        /// <summary>
+        /// Appelé par PlayerGrab : true = grab actif (masque visuel, bloque hotbar),
+        /// false = grab terminé (restaure visuel, débloque hotbar).
+        /// </summary>
+        public void SetGrabActive(bool active)
+        {
+            _grabActive = active;
+
+            if (active)
+            {
+                _stowed = false; // Reset stow — le grab prend le relais
+            }
+
+            RefreshHeldVisual();
+            OnHeldVisibilityChanged?.Invoke();
+        }
+
+        // =====================================================================
         // Held visual cache (client-side — purement cosmétique)
         // Les visuels sont créés une seule fois par item et activés/désactivés
         // selon le slot sélectionné. Pas de Destroy/Instantiate à chaque switch.
@@ -267,29 +328,30 @@ namespace VoidWarranty.Player
 
         private void RefreshHeldVisual()
         {
-            string itemId = EquippedItemId;
+            // Si grab actif ou rangé → pas de visuel en main
+            string targetId = (_grabActive || _stowed) ? "" : EquippedItemId;
 
             // Même item déjà actif → rien à faire
-            if (_activeVisualId == itemId) return;
+            if (_activeVisualId == targetId) return;
 
             // Désactiver l'ancien visuel
             if (!string.IsNullOrEmpty(_activeVisualId) && _heldVisualCache.TryGetValue(_activeVisualId, out var oldVisual))
                 oldVisual.SetActive(false);
 
-            _activeVisualId = itemId;
+            _activeVisualId = targetId;
 
             // Rien à afficher
-            if (string.IsNullOrEmpty(itemId))
+            if (string.IsNullOrEmpty(targetId))
                 return;
 
             // Activer depuis le cache ou créer
-            if (_heldVisualCache.TryGetValue(itemId, out var cached))
+            if (_heldVisualCache.TryGetValue(targetId, out var cached))
             {
                 cached.SetActive(true);
             }
             else
             {
-                CreateHeldVisual(itemId);
+                CreateHeldVisual(targetId);
             }
 
             // Nettoyer les visuels d'items qui ne sont plus dans l'inventaire

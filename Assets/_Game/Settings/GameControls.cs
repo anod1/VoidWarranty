@@ -226,6 +226,15 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""Stow"",
+                    ""type"": ""Button"",
+                    ""id"": ""b2c3d4e5-f6a7-8901-bcde-f23456789012"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -408,54 +417,10 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""05f6913d-c316-48b2-a6bb-e225f14c7960"",
-                    ""path"": ""<Mouse>/leftButton"",
+                    ""path"": ""<Keyboard>/f"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": "";Keyboard&Mouse"",
-                    ""action"": ""Grab"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""886e731e-7071-4ae4-95c0-e61739dad6fd"",
-                    ""path"": ""<Touchscreen>/primaryTouch/tap"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": "";Touch"",
-                    ""action"": ""Grab"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""ee3d0cd2-254e-47a7-a8cb-bc94d9658c54"",
-                    ""path"": ""<Joystick>/trigger"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Joystick"",
-                    ""action"": ""Grab"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""8255d333-5683-4943-a58a-ccb207ff1dce"",
-                    ""path"": ""<XRController>/{PrimaryAction}"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""XR"",
-                    ""action"": ""Grab"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""b3c1c7f0-bd20-4ee7-a0f1-899b24bca6d7"",
-                    ""path"": ""<Keyboard>/enter"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Keyboard&Mouse"",
                     ""action"": ""Grab"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -732,6 +697,17 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
                     ""action"": ""Drop"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""b2c3d4e5-0001-0001-0001-000000000001"",
+                    ""path"": ""<Keyboard>/h"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Stow"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1334,6 +1310,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         m_Player_MissionToggle = m_Player.FindAction("MissionToggle", throwIfNotFound: true);
         m_Player_HoldBreath = m_Player.FindAction("HoldBreath", throwIfNotFound: true);
         m_Player_HotbarScroll = m_Player.FindAction("HotbarScroll", throwIfNotFound: true);
+        m_Player_Stow = m_Player.FindAction("Stow", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1442,6 +1419,7 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_MissionToggle;
     private readonly InputAction m_Player_HoldBreath;
     private readonly InputAction m_Player_HotbarScroll;
+    private readonly InputAction m_Player_Stow;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -1514,6 +1492,10 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @HotbarScroll => m_Wrapper.m_Player_HotbarScroll;
         /// <summary>
+        /// Provides access to the underlying input action "Player/Stow".
+        /// </summary>
+        public InputAction @Stow => m_Wrapper.m_Player_Stow;
+        /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
         public InputActionMap Get() { return m_Wrapper.m_Player; }
@@ -1584,6 +1566,9 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
             @HotbarScroll.started += instance.OnHotbarScroll;
             @HotbarScroll.performed += instance.OnHotbarScroll;
             @HotbarScroll.canceled += instance.OnHotbarScroll;
+            @Stow.started += instance.OnStow;
+            @Stow.performed += instance.OnStow;
+            @Stow.canceled += instance.OnStow;
         }
 
         /// <summary>
@@ -1640,6 +1625,9 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
             @HotbarScroll.started -= instance.OnHotbarScroll;
             @HotbarScroll.performed -= instance.OnHotbarScroll;
             @HotbarScroll.canceled -= instance.OnHotbarScroll;
+            @Stow.started -= instance.OnStow;
+            @Stow.performed -= instance.OnStow;
+            @Stow.canceled -= instance.OnStow;
         }
 
         /// <summary>
@@ -2045,6 +2033,13 @@ public partial class @GameControls: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnHotbarScroll(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Stow" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnStow(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

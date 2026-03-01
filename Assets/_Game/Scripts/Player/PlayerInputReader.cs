@@ -23,6 +23,7 @@ namespace VoidWarranty.Player
         public event System.Action<int> OnHotbarSlotEvent;
         public event System.Action OnDropEvent;
         public event System.Action<float> OnHotbarScrollEvent;
+        public event System.Action OnStowEvent;
 
         private GameControls _controls;
 
@@ -146,6 +147,11 @@ namespace VoidWarranty.Player
         public void OnDrop(InputAction.CallbackContext context)
         {
             if (context.started) OnDropEvent?.Invoke();
+        }
+
+        public void OnStow(InputAction.CallbackContext context)
+        {
+            if (context.started) OnStowEvent?.Invoke();
         }
 
         // =================================================================

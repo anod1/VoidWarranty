@@ -47,6 +47,7 @@ namespace VoidWarranty.UI
 
             _inventory.OnInventoryChanged += RefreshDisplay;
             _inventory.OnSelectedSlotChanged += RefreshDisplay;
+            _inventory.OnHeldVisibilityChanged += RefreshDisplay;
 
             InitializeSlots();
             RefreshDisplay();
@@ -58,6 +59,7 @@ namespace VoidWarranty.UI
             {
                 _inventory.OnInventoryChanged -= RefreshDisplay;
                 _inventory.OnSelectedSlotChanged -= RefreshDisplay;
+                _inventory.OnHeldVisibilityChanged -= RefreshDisplay;
             }
         }
 
@@ -98,12 +100,13 @@ namespace VoidWarranty.UI
 
             var registry = ItemRegistry.Instance;
             int selectedSlot = _inventory.SelectedSlot;
+            bool showSelection = _inventory.IsHeldItemVisible;
             string selectedName = "";
 
             for (int i = 0; i < _slots.Count; i++)
             {
                 string itemId = _inventory.GetItemAtSlot(i);
-                bool isSelected = (i == selectedSlot);
+                bool isSelected = showSelection && (i == selectedSlot);
 
                 if (!string.IsNullOrEmpty(itemId) && registry != null)
                 {

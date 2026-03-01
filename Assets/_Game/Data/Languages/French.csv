@@ -73,3 +73,8 @@ ACTION_EXAMINE;Examiner
 ACTION_DRAW;Dessiner
 FEEDBACK_BOARD_OCCUPIED;Tableau occupé
 FEEDBACK_MARKER_NEEDED;Marqueur requis
+ITEM_MARKER_NAME;Marqueur
+ITEM_MARKER_DESC;Un gros marqueur industriel. Sent le solvant.
+INPUT_GRAB;[F]
+ACTION_CARRY;Porter
+ITEM_WHITEBOARD_NAME;Tableau blanc
