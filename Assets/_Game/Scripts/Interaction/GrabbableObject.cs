@@ -1,7 +1,9 @@
 using UnityEngine;
 using FishNet.Object;
-using FishNet.Object.Synchronizing; // Indispensable
+using FishNet.Object.Synchronizing;
+using FishNet.Transporting;
 using VoidWarranty.Core;
+using VoidWarranty.Player;
 
 namespace VoidWarranty.Interaction
 {
@@ -14,11 +16,18 @@ namespace VoidWarranty.Interaction
         protected Rigidbody _rb;
         protected int _defaultLayer;
 
-        // --- CORRECTION MAJEURE ICI ---
-        // On n'utilise plus [SyncVar] bool _isHeld.
-        // On utilise la structure SyncVar<bool> qui est readonly.
         public readonly SyncVar<bool> IsHeld = new SyncVar<bool>();
-        // ------------------------------
+
+        // Suivi visuel non-owner : l'objet suit le hold point du joueur distant
+        // au lieu du NetworkTransform (élimine le lag de double interpolation).
+        private Transform _holderGrabPoint;
+        private IGrabAction _action;
+
+        // Sync du paramètre d'action (brandish T, etc.) — unreliable pour le perf
+        private readonly SyncVar<float> _grabActionParam = new(new SyncTypeSettings(
+            Channel.Unreliable));
+        private float _lastSyncedActionParam;
+        private float _localActionParam; // interpolation locale non-owner
 
         protected virtual void Awake()
         {
@@ -55,10 +64,15 @@ namespace VoidWarranty.Interaction
         {
             if (newValue == true) // L'objet vient d'être attrapé
             {
+                transform.SetParent(null);
+                _action = GetComponent<IGrabAction>();
+
                 if (!base.IsOwner)
                 {
                     _rb.isKinematic = true;
                     _rb.useGravity = false;
+                    _localActionParam = 0f;
+                    CacheHolderGrabPoint();
                 }
                 else
                 {
@@ -66,11 +80,14 @@ namespace VoidWarranty.Interaction
                     _rb.useGravity = false;
                     _rb.linearDamping = 10f;
                     _rb.angularDamping = 10f;
+                    _lastSyncedActionParam = 0f;
+                    SetLayerRecursively(gameObject, LayerMask.NameToLayer("Ignore Raycast"));
                 }
-                SetLayerRecursively(gameObject, LayerMask.NameToLayer("Ignore Raycast"));
             }
             else // L'objet vient d'être lâché
             {
+                _holderGrabPoint = null;
+                _action = null;
                 _rb.isKinematic = false;
                 _rb.useGravity = true;
                 SetLayerRecursively(gameObject, _defaultLayer);
@@ -120,7 +137,81 @@ namespace VoidWarranty.Interaction
             IsHeld.Value = state;
         }
 
-        // --- Reste du script inchangé ---
+        // =====================================================================
+        // Non-owner visual follow — l'objet colle au hold point du joueur distant.
+        // Exécuté en LateUpdate (après le NetworkTransform) pour override la position.
+        // =====================================================================
+
+        private void CacheHolderGrabPoint()
+        {
+            _holderGrabPoint = null;
+            var ownerConn = base.NetworkObject?.Owner;
+            if (ownerConn != null && ownerConn.FirstObject != null)
+            {
+                var grab = ownerConn.FirstObject.GetComponent<PlayerGrab>();
+                if (grab != null)
+                    _holderGrabPoint = grab.GrabHoldPoint;
+            }
+        }
+
+        private void LateUpdate()
+        {
+            if (!IsHeld.Value) return;
+
+            // --- Owner : sync le paramètre d'action vers le serveur (throttlé) ---
+            if (base.IsOwner)
+            {
+                if (_action != null)
+                {
+                    float p = _action.ReplicatedParam;
+                    if (Mathf.Abs(p - _lastSyncedActionParam) > 0.02f)
+                    {
+                        _lastSyncedActionParam = p;
+                        CmdSyncGrabActionParam(p);
+                    }
+                }
+                return;
+            }
+
+            // --- Non-owner : suivi visuel du hold point distant ---
+            if (_holderGrabPoint == null)
+            {
+                CacheHolderGrabPoint();
+                if (_holderGrabPoint == null) return;
+            }
+
+            // Position/rotation = hold point + offsets ItemData
+            Vector3 targetPos = _holderGrabPoint.position;
+            Quaternion targetRot = _holderGrabPoint.rotation;
+
+            if (_data != null)
+            {
+                targetPos += _holderGrabPoint.right * _data.HeldPositionOffset.x
+                           + _holderGrabPoint.up * _data.HeldPositionOffset.y
+                           + _holderGrabPoint.forward * _data.HeldPositionOffset.z;
+                targetRot *= Quaternion.Euler(_data.HeldRotationOffset);
+            }
+
+            // Appliquer l'action (brandish) avec interpolation locale pour le smooth
+            if (_action != null)
+            {
+                _localActionParam = Mathf.MoveTowards(
+                    _localActionParam, _grabActionParam.Value, 12f * Time.deltaTime);
+                _action.ReplicatedParam = _localActionParam;
+                _action.ModifyHoldTarget(ref targetPos, ref targetRot, _holderGrabPoint);
+            }
+
+            transform.position = targetPos;
+            transform.rotation = targetRot;
+        }
+
+        [ServerRpc]
+        private void CmdSyncGrabActionParam(float value)
+        {
+            _grabActionParam.Value = value;
+        }
+
+        // =====================================================================
 
         public Rigidbody GetRigidbody() => _rb;
         public ItemData GetData() => _data;

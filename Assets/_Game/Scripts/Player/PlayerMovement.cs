@@ -59,9 +59,10 @@ namespace VoidWarranty.Player
         // 0 = silence, 0.3 = crouch walk, 0.6 = walk, 1 = sprint
         private float _currentNoiseLevel;
 
-        // SyncVar : répliqué owner → serveur → tous les clients (UDP unreliable).
+        // SyncVar : répliqué owner → serveur (via ServerRpc) → tous les clients (UDP unreliable).
         // Permet à DrifterAI (server) et PlayerFootsteps (remote clients) de lire le bon niveau.
-        private readonly SyncVar<float> _syncedNoiseLevel = new(new SyncTypeSettings(Channel.Unreliable));
+        private readonly SyncVar<float> _syncedNoiseLevel = new(new SyncTypeSettings(
+            Channel.Unreliable));
 
         // Throttle : on ne sync que si la valeur change significativement
         private float _lastSyncedNoiseLevel = -1f;
@@ -73,6 +74,12 @@ namespace VoidWarranty.Player
         /// Serveur/Clients → valeur synchro via SyncVar.
         /// </summary>
         public float NoiseLevel => base.IsOwner ? _currentNoiseLevel : _syncedNoiseLevel.Value;
+
+        [ServerRpc]
+        private void CmdSyncNoiseLevel(float level)
+        {
+            _syncedNoiseLevel.Value = level;
+        }
 
         /// <summary>True si le joueur est physiquement accroupi.</summary>
         public bool IsCrouching => _isCrouchingPhysically;
@@ -172,7 +179,7 @@ namespace VoidWarranty.Player
                     if (_lastSyncedNoiseLevel != 0f)
                     {
                         _lastSyncedNoiseLevel = 0f;
-                        _syncedNoiseLevel.Value = 0f;
+                        CmdSyncNoiseLevel(0f);
                     }
                 }
                 HandleHiddenRotation();
@@ -197,7 +204,7 @@ namespace VoidWarranty.Player
                 if (Mathf.Abs(_currentNoiseLevel - _lastSyncedNoiseLevel) >= NoiseSyncThreshold)
                 {
                     _lastSyncedNoiseLevel = _currentNoiseLevel;
-                    _syncedNoiseLevel.Value = _currentNoiseLevel;
+                    CmdSyncNoiseLevel(_currentNoiseLevel);
                 }
             }
         }
@@ -321,11 +328,11 @@ namespace VoidWarranty.Player
                 else _currentNoiseLevel = 0.6f;
             }
 
-            // Sync vers serveur + autres clients via SyncVar (throttlé, unreliable UDP)
+            // Sync vers serveur + autres clients via ServerRpc → SyncVar (throttlé)
             if (Mathf.Abs(_currentNoiseLevel - _lastSyncedNoiseLevel) >= NoiseSyncThreshold)
             {
                 _lastSyncedNoiseLevel = _currentNoiseLevel;
-                _syncedNoiseLevel.Value = _currentNoiseLevel;
+                CmdSyncNoiseLevel(_currentNoiseLevel);
             }
 
             // Mouvement horizontal + vertical

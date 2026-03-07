@@ -28,6 +28,11 @@ namespace SubSurface.Level
             Camera cam = GetComponent<Camera>();
             if (cam != null)
                 cam.enabled = true;
+
+            // Surveillance = render-only, pas d'audio
+            AudioListener listener = GetComponent<AudioListener>();
+            if (listener != null)
+                Destroy(listener);
         }
     }
 }

@@ -26,6 +26,13 @@ namespace VoidWarranty.Interaction
 
         private float _brandishT; // 0 = repos, 1 = brandi
 
+        /// <summary>Accès réseau au paramètre d'animation (owner écrit, non-owner lit).</summary>
+        public float ReplicatedParam
+        {
+            get => _brandishT;
+            set => _brandishT = value;
+        }
+
         // =====================================================================
         // IGrabAction
         // =====================================================================

@@ -33,6 +33,10 @@ namespace VoidWarranty.Player
         private readonly SyncList<string> _items = new();
         private readonly SyncVar<int> _selectedSlot = new();
 
+        // SyncVar : réplique l'état "item masqué" (grab ou stow) aux autres joueurs.
+        // Le owner envoie via ServerRpc, le serveur écrit → tous les clients lisent.
+        private readonly SyncVar<bool> _heldItemHidden = new();
+
         /// <summary>Fired client-side quand l'inventaire change (ajout, retrait).</summary>
         public event Action OnInventoryChanged;
 
@@ -43,7 +47,7 @@ namespace VoidWarranty.Player
         private readonly Dictionary<string, GameObject> _heldVisualCache = new();
         private string _activeVisualId;
 
-        // Grab / Stow state
+        // Grab / Stow state (owner-only, pour la réactivité locale)
         private bool _grabActive;  // Verrouillé par PlayerGrab (objet porté)
         private bool _stowed;      // Rangé manuellement par le joueur (H)
 
@@ -105,6 +109,7 @@ namespace VoidWarranty.Player
 
             _items.OnChange += OnItemsChanged;
             _selectedSlot.OnChange += OnSelectedSlotChanged_Callback;
+            _heldItemHidden.OnChange += OnHeldItemHiddenChanged;
 
             if (!base.IsOwner) return;
 
@@ -126,6 +131,7 @@ namespace VoidWarranty.Player
 
             _items.OnChange -= OnItemsChanged;
             _selectedSlot.OnChange -= OnSelectedSlotChanged_Callback;
+            _heldItemHidden.OnChange -= OnHeldItemHiddenChanged;
 
             ClearAllVisuals();
 
@@ -159,6 +165,14 @@ namespace VoidWarranty.Player
             RefreshHeldVisual();
         }
 
+        private void OnHeldItemHiddenChanged(bool prev, bool next, bool asServer)
+        {
+            if (asServer) return;
+            // Non-owner : le SyncVar a changé → rafraîchir le visuel
+            if (!base.IsOwner)
+                RefreshHeldVisual();
+        }
+
         // =====================================================================
         // Input handlers (owner only)
         // =====================================================================
@@ -172,6 +186,7 @@ namespace VoidWarranty.Player
             CmdSelectSlot(slotIndex);
             if (wasStowed)
             {
+                SyncHeldItemHidden();
                 RefreshHeldVisual();
                 OnHeldVisibilityChanged?.Invoke();
             }
@@ -187,6 +202,7 @@ namespace VoidWarranty.Player
             CmdSelectSlot(newSlot);
             if (wasStowed)
             {
+                SyncHeldItemHidden();
                 RefreshHeldVisual();
                 OnHeldVisibilityChanged?.Invoke();
             }
@@ -195,13 +211,18 @@ namespace VoidWarranty.Player
         private void HandleDrop()
         {
             if (_grabActive) return;
-            CmdDropSelectedItem();
+
+            // Le client envoie sa position/direction caméra au serveur
+            // (le serveur ne connait pas le pitch de la caméra distante)
+            Transform t = (_holdPoint != null) ? _holdPoint : transform;
+            CmdDropSelectedItem(t.position, t.forward);
         }
 
         private void HandleStow()
         {
             if (_grabActive) return;
             _stowed = !_stowed;
+            SyncHeldItemHidden();
             RefreshHeldVisual();
             OnHeldVisibilityChanged?.Invoke();
         }
@@ -243,7 +264,7 @@ namespace VoidWarranty.Player
         }
 
         [ServerRpc]
-        private void CmdDropSelectedItem()
+        private void CmdDropSelectedItem(Vector3 eyePosition, Vector3 lookDirection)
         {
             int idx = _selectedSlot.Value;
             if (idx < 0 || idx >= _items.Count) return;
@@ -253,7 +274,7 @@ namespace VoidWarranty.Player
 
             _items.RemoveAt(idx);
             ClampSelectedSlot();
-            SpawnDroppedItem(itemId);
+            SpawnDroppedItem(itemId, eyePosition, lookDirection);
 
             Debug.Log($"[PlayerInventory] Item droppé : {itemId} (joueur {OwnerId})");
         }
@@ -271,7 +292,7 @@ namespace VoidWarranty.Player
         // =====================================================================
 
         [Server]
-        private void SpawnDroppedItem(string itemId)
+        private void SpawnDroppedItem(string itemId, Vector3 eyePosition, Vector3 lookDirection)
         {
             var registry = ItemRegistry.Instance;
             if (registry == null) return;
@@ -283,19 +304,17 @@ namespace VoidWarranty.Player
                 return;
             }
 
-            Transform t = transform;
-            Vector3 spawnPos = t.position + t.forward * 1.5f + Vector3.up * 0.5f;
+            Vector3 spawnPos = eyePosition + lookDirection * 1.5f;
 
             GameObject dropped = Instantiate(itemData.DropPrefab, spawnPos, Quaternion.identity);
             ServerManager.Spawn(dropped);
 
-            // Activer la physique (le prefab est kinematic par défaut pour rester fixe en scène)
             Rigidbody rb = dropped.GetComponent<Rigidbody>();
             if (rb != null)
             {
                 rb.isKinematic = false;
                 rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-                rb.AddForce(t.forward * _dropForce, ForceMode.VelocityChange);
+                rb.AddForce(lookDirection * _dropForce, ForceMode.VelocityChange);
             }
         }
 
@@ -316,8 +335,21 @@ namespace VoidWarranty.Player
                 _stowed = false; // Reset stow — le grab prend le relais
             }
 
+            SyncHeldItemHidden();
             RefreshHeldVisual();
             OnHeldVisibilityChanged?.Invoke();
+        }
+
+        /// <summary>Owner-only : synchronise l'état masqué (grab/stow) vers les autres joueurs via ServerRpc.</summary>
+        private void SyncHeldItemHidden()
+        {
+            CmdSetHeldItemHidden(_grabActive || _stowed);
+        }
+
+        [ServerRpc]
+        private void CmdSetHeldItemHidden(bool hidden)
+        {
+            _heldItemHidden.Value = hidden;
         }
 
         // =====================================================================
@@ -328,8 +360,10 @@ namespace VoidWarranty.Player
 
         private void RefreshHeldVisual()
         {
-            // Si grab actif ou rangé → pas de visuel en main
-            string targetId = (_grabActive || _stowed) ? "" : EquippedItemId;
+            // Owner utilise l'état local (réactif, pas de latence).
+            // Non-owner utilise le SyncVar (répliqué depuis l'owner).
+            bool hidden = base.IsOwner ? (_grabActive || _stowed) : _heldItemHidden.Value;
+            string targetId = hidden ? "" : EquippedItemId;
 
             // Même item déjà actif → rien à faire
             if (_activeVisualId == targetId) return;

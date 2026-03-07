@@ -42,5 +42,11 @@ namespace VoidWarranty.Interaction
         /// Appelé quand l'objet est lâché. Cleanup état.
         /// </summary>
         void OnGrabEnd();
+
+        /// <summary>
+        /// Paramètre répliqué pour la synchronisation réseau.
+        /// Le owner écrit (ex: _brandishT), le non-owner lit la valeur synchro.
+        /// </summary>
+        float ReplicatedParam { get; set; }
     }
 }

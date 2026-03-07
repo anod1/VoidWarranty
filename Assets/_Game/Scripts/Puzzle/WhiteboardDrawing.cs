@@ -51,6 +51,12 @@ namespace SubSurface.Puzzle
         [Tooltip("ID de l'item à tenir en main pour dessiner (vide = pas de restriction)")]
         [SerializeField] private string _requiredItemId = "marker";
 
+        [Header("Shaders")]
+        [Tooltip("Shader pour le brush dessin (ex: Hidden/Internal-GUITextureClip ou Sprites/Default)")]
+        [SerializeField] private Shader _brushShader;
+        [Tooltip("Shader pour la gomme (EraserUnlit)")]
+        [SerializeField] private Shader _eraserShader;
+
         [Header("Network")]
         [SerializeField] private WhiteboardSync _sync;
 
@@ -114,6 +120,10 @@ namespace SubSurface.Puzzle
             CreateBrushTextures();
             _sendThreshold = _brushRadius * 0.3f;
             _pendingPoints = new List<Vector2>();
+
+            // Fallback si _sync n'est pas assigné dans l'Inspector
+            if (_sync == null)
+                _sync = GetComponentInParent<WhiteboardSync>();
         }
 
         private void OnDestroy()
@@ -144,6 +154,8 @@ namespace SubSurface.Puzzle
             {
                 if (_isDrawing) EndStroke();
                 if (_isErasing) EndStroke();
+                // DEBUG: décommenter pour diagnostiquer pourquoi le dessin est bloqué
+                // LogDrawBlockReason();
                 return;
             }
 
@@ -160,8 +172,9 @@ namespace SubSurface.Puzzle
             // Raycast depuis le centre de l'écran (crosshair)
             Ray ray = _mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
 
-            // ~0 = tous les layers y compris Ignore Raycast (layer 2)
-            if (Physics.Raycast(ray, out RaycastHit hit, 5f, ~0)
+            // Tous les layers sauf Player (7) — évite que le CharacterController bloque le raycast
+            int drawLayerMask = ~LayerMask.GetMask("Player");
+            if (Physics.Raycast(ray, out RaycastHit hit, 5f, drawLayerMask)
                 && hit.collider == _boardCollider)
             {
                 // UV calculé manuellement : Quad local space (-0.5..+0.5) → UV (0..1)
@@ -406,14 +419,37 @@ namespace SubSurface.Puzzle
             // --- Materials ---
 
             // Dessin : encre sombre, alpha-blend normal
-            Shader brushShader = Shader.Find("Hidden/Internal-GUITextureClip");
-            _drawMaterial = new Material(brushShader);
+            // Fallback sur Sprites/Default si le shader n'est pas assigné dans l'Inspector
+            Shader bShader = _brushShader != null ? _brushShader : Shader.Find("Sprites/Default");
+            if (bShader == null)
+            {
+                Debug.LogError("[WhiteboardDrawing] Aucun brush shader disponible ! Assigner _brushShader dans l'Inspector.");
+                bShader = Shader.Find("Sprites/Default");
+            }
+            _drawMaterial = new Material(bShader);
             _drawMaterial.color = _brushColor;
 
             // Gomme : shader custom qui écrase les pixels (Blend One Zero + clip)
-            Shader eraserShader = Shader.Find("Hidden/EraserUnlit");
-            _eraserMaterial = new Material(eraserShader);
+            Shader eShader = _eraserShader != null ? _eraserShader : Shader.Find("Hidden/EraserUnlit");
+            if (eShader == null)
+                Debug.LogError("[WhiteboardDrawing] Aucun eraser shader disponible ! Assigner _eraserShader dans l'Inspector.");
+            _eraserMaterial = new Material(eShader != null ? eShader : bShader);
             _eraserMaterial.color = _clearColor;
+        }
+
+        // =====================================================================
+        // Debug — décommenter l'appel dans Update() pour diagnostiquer
+        // =====================================================================
+
+        private void LogDrawBlockReason()
+        {
+            var inv = PlayerInventory.LocalInstance;
+            if (inv == null)
+                Debug.Log("[WhiteboardDrawing] BLOQUÉ : PlayerInventory.LocalInstance == null");
+            else if (inv.IsGrabActive)
+                Debug.Log("[WhiteboardDrawing] BLOQUÉ : IsGrabActive == true");
+            else
+                Debug.Log($"[WhiteboardDrawing] BLOQUÉ : EquippedItemId='{inv.EquippedItemId}' ≠ '{_requiredItemId}'");
         }
     }
 }

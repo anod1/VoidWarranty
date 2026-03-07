@@ -37,6 +37,9 @@ namespace VoidWarranty.Player
         public bool IsHolding => _currentObject != null;
         public float CurrentHeldMass { get; private set; } = 0f;
 
+        /// <summary>Hold point pour le grab (utilisé par GrabbableObject pour le suivi non-owner).</summary>
+        public Transform GrabHoldPoint => _grabHoldPoint;
+
         // =====================================================================
         // Lifecycle
         // =====================================================================
@@ -164,6 +167,11 @@ namespace VoidWarranty.Player
             if (grabbable != null && grabbable.NetworkObject != null)
             {
                 grabbable.NetworkObject.GiveOwnership(base.Owner);
+
+                // IsHeld immédiat sur le serveur (pas de round-trip ServerSetHeld)
+                // → les autres clients reçoivent le changement dès le prochain tick
+                grabbable.IsHeld.Value = true;
+
                 TargetGrabSuccess(base.Owner, grabbable);
             }
         }
@@ -176,6 +184,13 @@ namespace VoidWarranty.Player
 
             ItemData data = _currentObject.GetData();
             CurrentHeldMass = (data != null) ? data.Mass : 5f;
+
+            // Préparer le Rigidbody AVANT OnGrabbed (le SyncVar IsHeld fait
+            // un round-trip serveur → le callback OnHeldChanged arrive trop tard)
+            _heldRb.isKinematic = false;
+            _heldRb.useGravity = false;
+            _heldRb.linearDamping = 10f;
+            _heldRb.angularDamping = 10f;
 
             _currentObject.transform.SetParent(null);
             _currentObject.OnGrabbed(transform);
@@ -225,14 +240,19 @@ namespace VoidWarranty.Player
                 finalDropPos = dropOrigin + (dropDirection * dropReach);
             }
 
-            // 3. Positionner et lâcher
+            // 3. Notifier le serveur AVANT le reset local
+            // Envoie aussi la position de drop pour que le serveur mette à jour
+            // le transform → NetworkTransform propage la bonne position aux autres.
+            CmdNotifyDrop(_currentObject, finalDropPos, _currentObject.transform.rotation);
+
+            // 4. Positionner et lâcher localement
             _heldRb.position = finalDropPos;
             _currentObject.OnDropped();
 
             if (_heldRb != null)
                 _heldRb.AddForce(_cameraRoot.forward * _throwForce, ForceMode.Impulse);
 
-            // 4. Reset
+            // 5. Reset
             _currentAction?.OnGrabEnd();
             _currentAction = null;
             _currentObject = null;
@@ -242,6 +262,18 @@ namespace VoidWarranty.Player
             // Restaure l'objet d'inventaire en main
             if (_inventory != null)
                 _inventory.SetGrabActive(false);
+        }
+
+        [ServerRpc]
+        private void CmdNotifyDrop(GrabbableObject grabbable, Vector3 dropPosition, Quaternion dropRotation)
+        {
+            if (grabbable != null)
+            {
+                // Force la position sur le serveur → NetworkTransform propage
+                grabbable.transform.position = dropPosition;
+                grabbable.transform.rotation = dropRotation;
+                grabbable.IsHeld.Value = false;
+            }
         }
 
         // =====================================================================
